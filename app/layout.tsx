@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { WalletProvider } from "@/contexts/WalletProvide";
 import { Apolloprovider } from "@/apolloProvider";
 import { Provider } from "./provider";
+import { Web3Provider } from "@/contexts/Web3Provider";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -20,14 +21,17 @@ export default function RootLayout({
       <body
         className={`antialiased `}
       >
-        <Provider>
-          <WalletProvider>
-            <Apolloprovider>
-              {children}
-            </Apolloprovider>
-          </WalletProvider>
-        </Provider>
+        <Web3Provider>
+          <Provider>
+            <WalletProvider>
+              <Apolloprovider>
+                {children}
+              </Apolloprovider>
+            </WalletProvider>
+          </Provider>
+        </Web3Provider>
       </body>
     </html>
   );
 }
+

@@ -1,20 +1,34 @@
 import NFTCard from '@/components/ui/nft-card'
 import { getAllNftOfUser } from '@/data-access/nft';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import WithdrawEth from '@/components/Money-withdraw';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
 
 export default async function Page() {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    const cookieStore = cookies();
+    const token = cookieStore.get('token')?.value;
+
+    let user: { id: string; address: string } | null = null;
+    if (token) {
+        try {
+            const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_JWT_SECRET || "default_secret";
+            user = jwt.verify(token, jwtSecret) as { id: string; address: string };
+        } catch (e) {
+            console.error("JWT verification failed in account page:", e);
+        }
+    }
+
+    if (!user) {
         return (
-            <div>
-                you are unauthorised
+            <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-400 gap-4">
+                <h2 className="text-2xl font-bold text-white">Unauthorised</h2>
+                <p>Please connect your wallet to access your profile.</p>
             </div>
         )
     }
-    const data = await getAllNftOfUser(session?.user.id as string);
+
+    const data = await getAllNftOfUser(user.id);
     // console.log(data)
     return (
         <div className='w-full h-full px-8'>
@@ -40,3 +54,4 @@ export default async function Page() {
         </div>
     )
 }
+
