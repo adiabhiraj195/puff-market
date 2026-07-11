@@ -54,11 +54,11 @@ const HeroSection = ({ nftItems }: { nftItems: any }) => {
                                     alt={nft.nft.tokenId}
                                     className="object-cover h-full w-full"
                                 />
-                                <div className="p-3 flex absolute bottom-0 w-full bg-transparent justify-between">
+                                <div className="p-3 flex absolute bottom-0 w-full bg-transparent justify-between items-center">
                                     <p className="text-md font-bold">#{nft.nft.tokenId}</p>
-                                    <p className="text-md font-bold">
-                                        {nft.price} ETH
-                                    </p>
+                                    <span className="text-xs font-bold bg-blue-600 text-white px-3 py-1.5 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+                                        Buy for {Number(nft.price).toLocaleString()} PUFF
+                                    </span>
                                 </div>
                             </div>
                         </Link>

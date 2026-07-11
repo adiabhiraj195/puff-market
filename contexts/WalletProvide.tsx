@@ -32,7 +32,7 @@ export const useWallet = () => {
 };
 
 export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { address, isConnected: isWalletConnected } = useAccount();
+    const { address, isConnected: isWalletConnected, status } = useAccount();
     const { signMessageAsync } = useSignMessage();
     const { disconnect } = useDisconnect();
     const { openConnectModal } = useConnectModal();
@@ -169,6 +169,11 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // Auto-login or verify address matches JWT
     useEffect(() => {
+        // Wait until wagmi has finished checking the connection status
+        if (status === 'connecting' || status === 'reconnecting') {
+            return;
+        }
+
         if (isWalletConnected && address) {
             const walletAddress = address.toLowerCase();
             let tokenAddress = "";
@@ -183,10 +188,10 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (tokenAddress !== walletAddress) {
                 siweLogin(address);
             }
-        } else if (!isWalletConnected && isAuthenticated) {
+        } else if (status === 'disconnected' && isAuthenticated) {
             disconnectWallet();
         }
-    }, [address, isWalletConnected, token]);
+    }, [address, isWalletConnected, token, status]);
 
     const connectWallet = async () => {
         try {

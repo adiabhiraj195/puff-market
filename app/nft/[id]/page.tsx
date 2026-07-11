@@ -10,14 +10,32 @@ import SaleCard from "@/components/sale-card";
 import PriceHistory from "@/components/ui/price-history";
 import TransactionHistory from "@/components/transaction-history";
 import { getNftById } from "@/api/nft";
+import { useWallet } from "@/contexts/WalletProvide";
+import ListModal from "@/components/ListModal";
 
 
 export default function NftPage() {
     const { id } = useParams();
 
+    const { account } = useWallet();
     const [loading, setLoading] = useState<boolean>(false);
     const [nft, setNft] = useState<NftInterface | null>(null);
     const [metadata, setMetadata] = useState<NftMetadataInteface | null>(null);
+    const [isListModalOpen, setIsListModalOpen] = useState(false);
+
+    const refetchNftData = async () => {
+        try {
+            setLoading(true);
+            const result = await getNftById(id as string);
+            if (result.success) {
+                setNft(result.nft);
+            }
+        } catch (error) {
+            console.log(error)
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -38,6 +56,8 @@ export default function NftPage() {
         }
         fetchData();
     }, [])
+
+    const isOwner = !!(account && nft?.owner?.address && account.toLowerCase() === nft.owner.address.toLowerCase());
     return (
         <div className="px-9 py-5">
             {loading ? <Loading /> :
@@ -124,6 +144,8 @@ export default function NftPage() {
                             tokenId={nft?.tokenId as string}
                             ownerId={nft?.ownerId as string}
                             nftId={nft?.id as string}
+                            isOwner={isOwner}
+                            onListClick={() => setIsListModalOpen(true)}
                         />
 
                         {/* price histery  */}
@@ -133,6 +155,16 @@ export default function NftPage() {
                         <TransactionHistory />
                         {/* offers  */}
 
+                        {/* List Modal */}
+                        {nft && (
+                            <ListModal
+                                nftId={nft.id}
+                                tokenId={nft.tokenId}
+                                isOpen={isListModalOpen}
+                                onClose={() => setIsListModalOpen(false)}
+                                onSuccess={refetchNftData}
+                            />
+                        )}
                     </div>
 
                 </div>

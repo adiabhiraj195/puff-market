@@ -32,7 +32,11 @@ export default function NftListCard({
                 </Link>
             </td>
             <td className="py-3 px-4">{tokenId}</td>
-            <td className="py-3 px-4">{price}</td>
+            <td className="py-3 px-4">
+                <span className="text-sm font-semibold bg-blue-600/20 text-blue-400 px-2.5 py-1 rounded-md border border-blue-500/30">
+                    {Number(price).toLocaleString()} PUFF
+                </span>
+            </td>
         </tr>
     );
 };
