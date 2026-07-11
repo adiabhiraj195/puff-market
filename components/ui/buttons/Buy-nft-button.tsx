@@ -1,6 +1,7 @@
 "use client"
 import React from 'react'
 import { useWallet } from '@/contexts/WalletProvide'
+import { buyNft } from '@/api/nft';
 import { ethers } from 'ethers';
 import { MarketContract } from '@/lib/ethersContract';
 
@@ -40,16 +41,12 @@ export default function BuyButton({ ownerId, nftId, nftAddress, tokenId, nftPric
 
             const txRecipt = await tx.wait();
 
-            await fetch(`/api/nft/buy/${nftId}`, {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sellerId: ownerId,
-                    txHash: txRecipt.hash,
-                    price
-                })
-            })
-            console.log("buyed")
+            await buyNft(nftId, {
+                sellerId: ownerId,
+                txHash: txRecipt.hash,
+                price: price.toString()
+            });
+            console.log("buyed");
         } catch (error) {
 
         }

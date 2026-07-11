@@ -1,6 +1,7 @@
 "use client"
 import React from 'react'
 import { useWallet } from '@/contexts/WalletProvide'
+import { cancelListing } from '@/api/nft';
 import { ethers } from 'ethers';
 import { MarketContract } from '@/lib/ethersContract';
 
@@ -34,9 +35,7 @@ export default function Cancel_Listing_Button({ nftId, nftAddress, tokenId }: {
             const tx = await marketContract.cancelListing(nftAddress, tokenId);
             await tx.wait();
 
-            await fetch(`/api/nft/cancel/${nftId}`, {
-                method: "POST",
-            })
+            await cancelListing(nftId);
 
             console.log("canceled")
         } catch (error) {

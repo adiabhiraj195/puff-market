@@ -2,6 +2,7 @@ import { TransactionInterface } from '@/types/transaction-types';
 import { ethers } from 'ethers';
 
 import { useEffect, useState } from 'react';
+import { getNftTransactions } from '@/api/nft';
 
 
 export default function Nft_Transaction({ nftId }: { nftId: string }) {
@@ -9,8 +10,7 @@ export default function Nft_Transaction({ nftId }: { nftId: string }) {
     // console.log(nftId)
     useEffect(() => {
         const fetchData = async () => {
-            const transResponse = await fetch(`/api/nft/transaction/${nftId}`);
-            const result = await transResponse.json();
+            const result = await getNftTransactions(nftId);
             setTransactions(result.transactions as TransactionInterface[]);
             // console.log(result);
         }

@@ -7,6 +7,7 @@ import { ApeWorldContract, MarketContract } from '@/lib/ethersContract';
 import { CONTRACT_ADDRESS } from '@/constants/contractConfig';
 import { Outfit, Staatliches } from "@next/font/google";
 import Loading from './ui/Loading';
+import { createNft } from '@/api/nft';
 
 const statliche = Staatliches({
     weight: ["400"],
@@ -88,13 +89,7 @@ const SellNFTForm = () => {
                 uri: listdata?.uri
             }
             // send data to backend
-            const result = await fetch('/api/nft', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const response = await result.json();
+            const response = await createNft(payload);
             console.log("response:", response);
             // request to backend to update database listing, transaction history;
 

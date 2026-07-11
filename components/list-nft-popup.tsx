@@ -6,6 +6,7 @@ import { useWallet } from '@/contexts/WalletProvide';
 import { CONTRACT_ADDRESS } from '@/constants/contractConfig';
 import { ethers } from 'ethers';
 import Loading from './ui/Loading';
+import { listNft } from '@/api/nft';
 
 interface Nft_Popup_Interface {
   nftId: string;
@@ -41,14 +42,8 @@ export default function List_Nft_Popup({
       const tx = await marketContract.listItem(nftContract, tokenId, priceInWei);
       await tx.wait();
 
-      const list = await fetch("/api/nft/list", {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ nftId, price })
-      })
-      console.log(await list.json())
+      const list = await listNft(nftId, price);
+      console.log(list);
     } catch (error) {
       console.log(error)
     } finally {

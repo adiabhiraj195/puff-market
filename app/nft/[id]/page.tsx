@@ -9,6 +9,7 @@ import ListingHeader from "@/components/listing-header";
 import SaleCard from "@/components/sale-card";
 import PriceHistory from "@/components/ui/price-history";
 import TransactionHistory from "@/components/transaction-history";
+import { getNftById } from "@/api/nft";
 
 
 export default function NftPage() {
@@ -22,9 +23,7 @@ export default function NftPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`/api/nft/${id}`);
-                const result = await response.json();
-                console.log(result)
+                const result = await getNftById(id as string);
                 if (result.success) {
                     setNft(result.nft);
 

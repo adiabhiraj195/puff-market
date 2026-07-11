@@ -7,19 +7,11 @@ import { Staatliches } from "@next/font/google";
 import { NftInterface, NftMetadataInteface } from "@/types/nft-types";
 import List_Nft_Popup from "@/components/list-nft-popup";
 import Nft_Details_Panel from "@/components/nft-details-panel";
-import { useSession } from "next-auth/react";
 import Cancel_Listing_Button from "@/components/ui/buttons/cancel-listing-button";
 import Nft_Transaction from "@/components/nft-transations";
-import { WrapServerComponent } from "@/app/provider";
-
-const statliche = Staatliches({
-    weight: ["400"],
-    subsets: ['latin']
-})
-
+import { getNftById } from "@/api/nft";
 export default function NftAsAssetPage() {
     const { id } = useParams();
-    const { data: session } = useSession();
 
     const [loading, setLoading] = useState<boolean>(false);
     const [nft, setNft] = useState<NftInterface | null>(null);
@@ -32,9 +24,7 @@ export default function NftAsAssetPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`/api/nft/${id}`);
-                const result = await response.json();
-                console.log(result)
+                const result = await getNftById(id as string);
                 if (result.success) {
                     setNft(result.nft);
 

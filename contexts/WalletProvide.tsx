@@ -1,10 +1,11 @@
 "use client"
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
 import { ethers } from "ethers";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
+import { getSiweNonce, verifySiwe } from "@/api/auth";
 
 interface WalletContextType {
     connectWallet: () => Promise<void>;
@@ -46,6 +47,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [user, setUser] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
+
     // Get PUFF Token balance
     const { data: balance, refetch: refetchBalance } = useReadContract({
         address: PUFF_TOKEN_ADDRESS as `0x${string}`,
@@ -67,15 +70,32 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Setup ethers provider & signer from connector client
     useEffect(() => {
         if (!client) {
-            setProvider(null);
-            setSigner(null);
+            if (lastConnectionRef.current !== null) {
+                setProvider(null);
+                setSigner(null);
+                lastConnectionRef.current = null;
+            }
             return;
         }
+
+        const addressVal = client.account.address;
+        const chainId = client.chain?.id ?? 0;
+
+        if (
+            lastConnectionRef.current &&
+            lastConnectionRef.current.address.toLowerCase() === addressVal.toLowerCase() &&
+            lastConnectionRef.current.chainId === chainId
+        ) {
+            // Avoid redundant provider/signer reconstruction to break re-render loop
+            return;
+        }
+
         try {
             const browserProvider = new ethers.BrowserProvider(client.transport);
             const rpcSigner = new ethers.JsonRpcSigner(browserProvider, client.account.address);
             setProvider(browserProvider);
             setSigner(rpcSigner);
+            lastConnectionRef.current = { address: addressVal, chainId };
         } catch (err) {
             console.error("Failed to construct ethers provider/signer:", err);
         }
@@ -118,23 +138,13 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         try {
             setError(null);
             // 1. GET message string with nonce
-            const res = await fetch('/api/auth/nonce', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: walletAddress })
-            });
-            const { message } = await res.json();
+            const { message } = await getSiweNonce(walletAddress);
 
             // 2. signMessage
             const signature = await signMessageAsync({ message });
 
             // 3. verify
-            const verifyRes = await fetch('/api/auth/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, signature, address: walletAddress })
-            });
-            const verifyData = await verifyRes.json();
+            const verifyData = await verifySiwe(message, signature, walletAddress);
 
             if (verifyData.success) {
                 localStorage.setItem('token', verifyData.token);

@@ -1,15 +1,18 @@
 
-import { getAllActiveListings } from "@/data-access/listing";
 import HeroSection from "@/components/hero";
 import HomeFilter from "@/components/home-filter";
 import NftListCard from "@/components/ui/nft-list-card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
+import { getNftListings } from "@/api/nft";
 
 export default async function Home() {
-  const listings = await getAllActiveListings();
-
-  // console.log(listings)
+  let listings: any[] = [];
+  try {
+    listings = await getNftListings();
+  } catch (err) {
+    console.error("Failed to fetch listings:", err);
+  }
   return (
     <div className="w-full">
       <Navbar />
@@ -37,7 +40,7 @@ export default async function Home() {
                 {/* nft list maped here */}
                 <tbody>
                   {
-                    listings?.map((item: any, index) => (
+                    listings?.map((item: any, index: number) => (
                       <NftListCard
                         key={index}
                         id={item.nftId}

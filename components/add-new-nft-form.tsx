@@ -4,6 +4,7 @@ import { useWallet } from "@/contexts/WalletProvide";
 import { ApeWorldContract } from "@/lib/ethersContract";
 import Loading from "./ui/Loading";
 import { useRouter } from "next/navigation";
+import { createNft } from "@/api/nft";
 
 const AddNewNftForm: React.FC = () => {
   const [nftAddress, setNftAddress] = useState<string>("");
@@ -42,15 +43,8 @@ const AddNewNftForm: React.FC = () => {
           type: metadata.type
         }
 
-        const response = await fetch("/api/nft", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload)
-        })
-
-        console.log(await response.json());
+        const response = await createNft(payload);
+        console.log(response);
       }
       setLoading(false);
       router.refresh();

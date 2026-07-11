@@ -5,6 +5,7 @@ import { AiFillHeart } from "react-icons/ai";
 import { ethers } from "ethers";
 import { MarketContract } from "@/lib/ethersContract";
 import { useWallet } from "@/contexts/WalletProvide";
+import { buyNft } from "@/api/nft";
 
 const SaleCard = ({
     nftPrice,
@@ -37,16 +38,12 @@ const SaleCard = ({
 
             const txRecipt = await tx.wait();
 
-            await fetch(`/api/nft/buy/${nftId}`, {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sellerId: ownerId,
-                    txHash: txRecipt.hash,
-                    price
-                })
-            })
-            console.log("buyed")
+            await buyNft(nftId, {
+                sellerId: ownerId,
+                txHash: txRecipt.hash,
+                price: price.toString()
+            });
+            console.log("buyed");
         } catch (error) {
 
         }
