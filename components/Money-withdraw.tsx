@@ -1,8 +1,9 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useWallet } from '@/contexts/WalletProvide'
-import { ethers } from "ethers";
-import { MarketContract } from '@/lib/ethersContract';
+import { useReadContract, useWriteContract, usePublicClient } from 'wagmi';
+import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
+import { formatEther } from 'viem';
 import { Outfit, Staatliches } from "@next/font/google";
 import Loading from './ui/Loading';
 
@@ -16,32 +17,23 @@ const outfit = Outfit({
 })
 
 export default function WithdrawEth() {
-    const { signer, isConnected } = useWallet();
-    const [balance, setBalance] = useState("");
+    const { account, isConnected } = useWallet();
     const [loading, setLoading] = useState(false);
 
-    async function getBalance() {
-        if (!isConnected) {
-            return;
+    const { data: rawBalance, refetch: refetchProceeds } = useReadContract({
+        address: MARKETPLACE_ADDRESS as `0x${string}`,
+        abi: MARKETPLACE_ABI as any,
+        functionName: 'getBalance',
+        account: account as `0x${string}`,
+        query: {
+            enabled: !!account && isConnected,
         }
-        console.log("hii")
-        try {
-            const marketContract = MarketContract(signer);
+    });
 
-            const tx = await marketContract.getBalance();
+    const balanceStr = rawBalance ? formatEther(rawBalance as bigint) : "0";
 
-            if (!tx) {
-                return
-            }
-
-            const result = tx.toString();
-            setBalance(ethers.formatEther(result));
-            console.log(balance + " balance", ethers.formatEther(result))
-
-        } catch (error) {
-            console.log(error);
-        }
-    }
+    const { writeContractAsync } = useWriteContract();
+    const publicClient = usePublicClient();
 
     async function handleWithdraw() {
         if (!isConnected) {
@@ -50,26 +42,29 @@ export default function WithdrawEth() {
         setLoading(true)
 
         try {
-            const marketContract = MarketContract(signer);
+            const txHash = await writeContractAsync({
+                address: MARKETPLACE_ADDRESS as `0x${string}`,
+                abi: MARKETPLACE_ABI as any,
+                functionName: 'withdrawProceeds',
+            });
 
-            const tx = await marketContract.withdrawProceeds();
+            if (publicClient) {
+                await publicClient.waitForTransactionReceipt({ hash: txHash });
+            }
 
-            getBalance();
+            refetchProceeds();
 
         } catch (error) {
-            console.log(error);
+            console.error("Failed to withdraw proceeds:", error);
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
-
-    useEffect(() => {
-        getBalance();
-    }, [isConnected])
 
     return (
         <div className='flex items-center justify-end'>
             <p className={`${outfit.className} mx-4`}>
-                <strong>Balance: </strong>{balance != "" ? balance : 0}
+                <strong>Balance: </strong>{balanceStr != "0" ? balanceStr : 0}
             </p>
             <button
                 onClick={handleWithdraw}

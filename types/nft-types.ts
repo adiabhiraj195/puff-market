@@ -10,10 +10,14 @@ export interface NftInterface {
     isListed: boolean;
     createdAt: Date;
     updatedAt: Date;
-    owner: User
+    owner: User;
     listing?: {
         price: string
-    }
+    };
+    name?: string;
+    description?: string;
+    attributes?: any;
+    creatorAddress?: string;
 }
 
 export interface NftMetadataInteface {

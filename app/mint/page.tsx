@@ -151,6 +151,7 @@ export default function MintPage() {
             abi: PUFF_NFT_ABI as any,
             functionName: "mintNFT",
             args: [account as `0x${string}`, tokenURI],
+            gas: 500000n
         });
     };
 

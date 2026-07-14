@@ -1,7 +1,7 @@
 import PuffNFTArtifact from "@/contracts/PuffNft.sol/PuffNFTs.json";
 
 // export const Marketplace_ADDRESS = "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9";
-export const PUFF_NFT_ADDRESS = "0x0165878a594ca255338adfa4d48449f69242eb8f";
+export const PUFF_NFT_ADDRESS = "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512";
 // export const PUFF_NFT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 export const PUFF_NFT_ABI = PuffNFTArtifact.abi;
 

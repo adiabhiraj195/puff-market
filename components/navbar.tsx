@@ -31,8 +31,8 @@ export default function Navbar() {
                     <h1 className={`${statliche.className} text-2xl italic font-light border-r pr-3 border-gray-500 `}>{`PUFF {MARKET}`}</h1>
                 </Link>
 
-                <Link href="/create" className='mx-3 font-bold hover:text-gray-400'>
-                    Create
+                <Link href="/mint" className='mx-3 font-bold hover:text-gray-400'>
+                    Mint NFT
                 </Link>
                 <Link href="/auction" className='mx-3 font-bold hover:text-gray-400'>
                     Auctions
@@ -59,7 +59,7 @@ export default function Navbar() {
                                 Get PUFF
                             </button>
                         )}
-                        
+
                         {/* Shortened Address & Profile Link */}
                         <Link href="/account" className='flex items-center gap-2 hover:bg-gray-800/80 px-3 py-1.5 rounded-full transition-all duration-200 border border-transparent hover:border-gray-600/30' title="Go to Profile">
                             <div className='w-5 h-5 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-[10px] text-white font-bold uppercase shadow-sm'>

@@ -65,13 +65,7 @@ export async function createNft(payload: CreateNftPayload): Promise<{ data: any 
   return response.data;
 }
 
-/**
- * List an NFT for sale.
- */
-export async function listNft(nftId: string, price: string): Promise<{ success: boolean; listing: any }> {
-  const response = await axiosClient.post<{ success: boolean; listing: any }>('/api/nft/list', { nftId, price });
-  return response.data;
-}
+
 
 /**
  * Complete purchase of an NFT.

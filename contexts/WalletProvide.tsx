@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
 import { ethers } from "ethers";
+import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
@@ -46,6 +47,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [token, setToken] = useState<string | null>(null);
     const [user, setUser] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ message: string } | null>(null);
 
     const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
 
@@ -193,6 +195,43 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, [address, isWalletConnected, token, status]);
 
+    // Socket.io real-time connection for notifications
+    useEffect(() => {
+        if (!isWalletConnected || !address) {
+            return;
+        }
+
+        console.log("[Socket] Initializing socket connection to server...");
+        const socket = io("http://localhost:5001");
+
+        socket.on("connect", () => {
+            const walletRoom = address.toLowerCase();
+            console.log(`[Socket] Connected. Joining wallet room: ${walletRoom}`);
+            socket.emit("join:wallet", { address: walletRoom });
+        });
+
+        socket.on("nft:sold", (data: { tokenId: string; price: string }) => {
+            console.log("[Socket] Received nft:sold event:", data);
+            const priceNum = Number(data.price);
+            const proceeds = priceNum * 0.925;
+            setNotification({
+                message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
+            });
+            
+            // Auto refetch balance
+            refetchBalance();
+        });
+
+        socket.on("disconnect", () => {
+            console.log("[Socket] Disconnected from notification server.");
+        });
+
+        return () => {
+            console.log("[Socket] Cleaning up socket connection...");
+            socket.disconnect();
+        };
+    }, [address, isWalletConnected]);
+
     const connectWallet = async () => {
         try {
             if (isWalletConnected && address) {
@@ -236,6 +275,31 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             }}
         >
             {children}
+            {notification && (
+                <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm w-full bg-[#111318] border border-green-500/30 rounded-2xl p-5 shadow-2xl text-white backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-300">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <span className="flex h-2.5 w-2.5 rounded-full bg-green-500 animate-ping" />
+                            <span className="font-bold text-green-400 tracking-wide text-sm uppercase">NFT Sold! 🎉</span>
+                        </div>
+                        <button 
+                            onClick={() => setNotification(null)} 
+                            className="text-gray-500 hover:text-white transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed mt-2">{notification.message}</p>
+                    <div className="mt-4 flex gap-2">
+                        <button
+                            onClick={() => setNotification(null)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 font-bold transition-all"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
         </WalletContext.Provider>
     );
 };
