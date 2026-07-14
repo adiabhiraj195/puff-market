@@ -1,4 +1,4 @@
-import { Outfit, Staatliches } from "@next/font/google";
+import { Outfit, Staatliches } from "next/font/google";
 
 const statliche = Staatliches({
     weight: ["400"],

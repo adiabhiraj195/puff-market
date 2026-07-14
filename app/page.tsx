@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
 import HeroSection from "@/components/hero";
 import { getNftListings } from "@/api/nft";
 import { ListingInterface } from "@/types/nft-types";
@@ -86,15 +84,12 @@ export default function Home() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-[#060709] text-white flex flex-col justify-between selection:bg-blue-600/35 selection:text-white">
-      <div>
-        <Navbar />
+    <div className="relative z-10 w-full selection:bg-blue-600/35 selection:text-white">
+      {/* Decorative ambient background glows */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none z-0" />
+      <div className="absolute top-64 right-1/4 w-80 h-80 bg-purple-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
-        {/* Decorative ambient background glows */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none z-0" />
-        <div className="absolute top-64 right-1/4 w-80 h-80 bg-purple-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10 space-y-12">
           
           {/* Market Overview Stats Banner */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-[#0c0d11]/80 border border-gray-800/80 rounded-2xl backdrop-blur-md shadow-2xl">
@@ -350,8 +345,6 @@ export default function Home() {
             )}
           </div>
         </div>
-      </div>
-      <Footer />
     </div>
   );
 }

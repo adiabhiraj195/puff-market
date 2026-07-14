@@ -1,10 +1,10 @@
 "use client"
 import React, { useState } from 'react'
-import { useWallet } from '@/contexts/WalletProvide'
+import { useWallet } from '@/contexts/WalletProvider'
 import { useReadContract, useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { formatEther } from 'viem';
-import { Outfit, Staatliches } from "@next/font/google";
+import { Outfit, Staatliches } from "next/font/google";
 import Loading from './ui/Loading';
 
 const statliche = Staatliches({

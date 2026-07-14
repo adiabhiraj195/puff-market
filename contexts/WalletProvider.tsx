@@ -48,8 +48,10 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [user, setUser] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<{ message: string } | null>(null);
+    const [isSigning, setIsSigning] = useState(false);
 
     const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
+    const hasPromptedRef = useRef<string | null>(null);
 
     // Get PUFF Token balance
     const { data: balance, refetch: refetchBalance } = useReadContract({
@@ -137,6 +139,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
+        if (isSigning) return;
+        setIsSigning(true);
         try {
             setError(null);
             // 1. GET message string with nonce
@@ -166,6 +170,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setToken(null);
             setUser(null);
             setIsAuthenticated(false);
+        } finally {
+            setIsSigning(false);
         }
     };
 
@@ -187,13 +193,17 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 } catch (e) {}
             }
 
-            if (tokenAddress !== walletAddress) {
+            if (tokenAddress !== walletAddress && hasPromptedRef.current !== walletAddress) {
+                hasPromptedRef.current = walletAddress;
                 siweLogin(address);
             }
-        } else if (status === 'disconnected' && isAuthenticated) {
-            disconnectWallet();
+        } else if (status === 'disconnected') {
+            hasPromptedRef.current = null;
+            if (isAuthenticated) {
+                disconnectWallet();
+            }
         }
-    }, [address, isWalletConnected, token, status]);
+    }, [address, isWalletConnected, token, status, isAuthenticated]);
 
     // Socket.io real-time connection for notifications
     useEffect(() => {

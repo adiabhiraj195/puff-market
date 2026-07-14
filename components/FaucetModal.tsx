@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
-import { useWallet } from '@/contexts/WalletProvide';
+import { useWallet } from '@/contexts/WalletProvider';
 import { IoClose } from 'react-icons/io5';
-import { Staatliches, Outfit } from '@next/font/google';
+import { Staatliches, Outfit } from 'next/font/google';
 
 const statliche = Staatliches({
   weight: ["400"],

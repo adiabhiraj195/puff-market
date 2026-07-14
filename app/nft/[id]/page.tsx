@@ -11,7 +11,7 @@ import SaleCard from "@/components/sale-card";
 import PriceHistory from "@/components/ui/price-history";
 import TransactionHistory from "@/components/transaction-history";
 import { getNftById, getNftTransactions } from "@/api/nft";
-import { useWallet } from "@/contexts/WalletProvide";
+import { useWallet } from "@/contexts/WalletProvider";
 import ListModal from "@/components/ListModal";
 import BuyModal from "@/components/BuyModal";
 import { FiBookOpen, FiGrid, FiInfo } from "react-icons/fi";

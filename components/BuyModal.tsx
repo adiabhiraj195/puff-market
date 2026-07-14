@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
-import { useWallet } from '@/contexts/WalletProvide';
+import { useWallet } from '@/contexts/WalletProvider';
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS } from '@/constants/Marketplace';
 import { PUFF_NFT_ADDRESS } from '@/constants/PuffNft';

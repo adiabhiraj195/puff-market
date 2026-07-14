@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import Slider from 'react-slick';
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const HeroSection = ({ nftItems }: { nftItems: any }) => {
     const [selectedFilter, setSelectedFilter] = useState<string>('All');

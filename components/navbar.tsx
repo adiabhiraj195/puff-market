@@ -3,11 +3,11 @@
 import React, { useState } from 'react'
 import WalletConnectButton from './ui/buttons/connect-button'
 import Link from 'next/link'
-import { Staatliches } from '@next/font/google'
+import { Staatliches } from 'next/font/google'
 import logo from './assets/full-moon-transparent-4.png'
 import Image from 'next/image'
 import SearchBar from './ui/search-bar'
-import { useWallet } from '@/contexts/WalletProvide'
+import { useWallet } from '@/contexts/WalletProvider'
 import FaucetModal from './FaucetModal'
 
 const statliche = Staatliches({

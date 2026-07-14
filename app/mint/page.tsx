@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { decodeEventLog } from "viem";
-import { useWallet } from "@/contexts/WalletProvide";
+import { useWallet } from "@/contexts/WalletProvider";
 import axiosClient from "@/api/axiosClient";
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from "@/constants/PuffNft";
 import Loading from "@/components/ui/Loading";
