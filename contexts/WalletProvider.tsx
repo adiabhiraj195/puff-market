@@ -1,10 +1,12 @@
 "use client"
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
 import { ethers } from "ethers";
+import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
+import { getSiweNonce, verifySiwe } from "@/api/auth";
 
 interface WalletContextType {
     connectWallet: () => Promise<void>;
@@ -31,7 +33,7 @@ export const useWallet = () => {
 };
 
 export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { address, isConnected: isWalletConnected } = useAccount();
+    const { address, isConnected: isWalletConnected, status } = useAccount();
     const { signMessageAsync } = useSignMessage();
     const { disconnect } = useDisconnect();
     const { openConnectModal } = useConnectModal();
@@ -45,6 +47,11 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [token, setToken] = useState<string | null>(null);
     const [user, setUser] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ message: string } | null>(null);
+    const [isSigning, setIsSigning] = useState(false);
+
+    const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
+    const hasPromptedRef = useRef<string | null>(null);
 
     // Get PUFF Token balance
     const { data: balance, refetch: refetchBalance } = useReadContract({
@@ -67,15 +74,32 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Setup ethers provider & signer from connector client
     useEffect(() => {
         if (!client) {
-            setProvider(null);
-            setSigner(null);
+            if (lastConnectionRef.current !== null) {
+                setProvider(null);
+                setSigner(null);
+                lastConnectionRef.current = null;
+            }
             return;
         }
+
+        const addressVal = client.account.address;
+        const chainId = client.chain?.id ?? 0;
+
+        if (
+            lastConnectionRef.current &&
+            lastConnectionRef.current.address.toLowerCase() === addressVal.toLowerCase() &&
+            lastConnectionRef.current.chainId === chainId
+        ) {
+            // Avoid redundant provider/signer reconstruction to break re-render loop
+            return;
+        }
+
         try {
             const browserProvider = new ethers.BrowserProvider(client.transport);
             const rpcSigner = new ethers.JsonRpcSigner(browserProvider, client.account.address);
             setProvider(browserProvider);
             setSigner(rpcSigner);
+            lastConnectionRef.current = { address: addressVal, chainId };
         } catch (err) {
             console.error("Failed to construct ethers provider/signer:", err);
         }
@@ -115,26 +139,18 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
+        if (isSigning) return;
+        setIsSigning(true);
         try {
             setError(null);
             // 1. GET message string with nonce
-            const res = await fetch('/api/auth/nonce', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: walletAddress })
-            });
-            const { message } = await res.json();
+            const { message } = await getSiweNonce(walletAddress);
 
             // 2. signMessage
             const signature = await signMessageAsync({ message });
 
             // 3. verify
-            const verifyRes = await fetch('/api/auth/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, signature, address: walletAddress })
-            });
-            const verifyData = await verifyRes.json();
+            const verifyData = await verifySiwe(message, signature, walletAddress);
 
             if (verifyData.success) {
                 localStorage.setItem('token', verifyData.token);
@@ -154,11 +170,18 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setToken(null);
             setUser(null);
             setIsAuthenticated(false);
+        } finally {
+            setIsSigning(false);
         }
     };
 
     // Auto-login or verify address matches JWT
     useEffect(() => {
+        // Wait until wagmi has finished checking the connection status
+        if (status === 'connecting' || status === 'reconnecting') {
+            return;
+        }
+
         if (isWalletConnected && address) {
             const walletAddress = address.toLowerCase();
             let tokenAddress = "";
@@ -170,13 +193,54 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 } catch (e) {}
             }
 
-            if (tokenAddress !== walletAddress) {
+            if (tokenAddress !== walletAddress && hasPromptedRef.current !== walletAddress) {
+                hasPromptedRef.current = walletAddress;
                 siweLogin(address);
             }
-        } else if (!isWalletConnected && isAuthenticated) {
-            disconnectWallet();
+        } else if (status === 'disconnected') {
+            hasPromptedRef.current = null;
+            if (isAuthenticated) {
+                disconnectWallet();
+            }
         }
-    }, [address, isWalletConnected, token]);
+    }, [address, isWalletConnected, token, status, isAuthenticated]);
+
+    // Socket.io real-time connection for notifications
+    useEffect(() => {
+        if (!isWalletConnected || !address) {
+            return;
+        }
+
+        console.log("[Socket] Initializing socket connection to server...");
+        const socket = io("http://localhost:5001");
+
+        socket.on("connect", () => {
+            const walletRoom = address.toLowerCase();
+            console.log(`[Socket] Connected. Joining wallet room: ${walletRoom}`);
+            socket.emit("join:wallet", { address: walletRoom });
+        });
+
+        socket.on("nft:sold", (data: { tokenId: string; price: string }) => {
+            console.log("[Socket] Received nft:sold event:", data);
+            const priceNum = Number(data.price);
+            const proceeds = priceNum * 0.925;
+            setNotification({
+                message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
+            });
+            
+            // Auto refetch balance
+            refetchBalance();
+        });
+
+        socket.on("disconnect", () => {
+            console.log("[Socket] Disconnected from notification server.");
+        });
+
+        return () => {
+            console.log("[Socket] Cleaning up socket connection...");
+            socket.disconnect();
+        };
+    }, [address, isWalletConnected]);
 
     const connectWallet = async () => {
         try {
@@ -221,6 +285,31 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             }}
         >
             {children}
+            {notification && (
+                <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm w-full bg-[#111318] border border-green-500/30 rounded-2xl p-5 shadow-2xl text-white backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-300">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <span className="flex h-2.5 w-2.5 rounded-full bg-green-500 animate-ping" />
+                            <span className="font-bold text-green-400 tracking-wide text-sm uppercase">NFT Sold! 🎉</span>
+                        </div>
+                        <button 
+                            onClick={() => setNotification(null)} 
+                            className="text-gray-500 hover:text-white transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed mt-2">{notification.message}</p>
+                    <div className="mt-4 flex gap-2">
+                        <button
+                            onClick={() => setNotification(null)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 font-bold transition-all"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
         </WalletContext.Provider>
     );
 };

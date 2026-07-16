@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react'
+import React, { useState } from 'react'
 import WalletConnectButton from './ui/buttons/connect-button'
 import Link from 'next/link'
-import { Staatliches } from '@next/font/google'
+import { Staatliches } from 'next/font/google'
 import logo from './assets/full-moon-transparent-4.png'
 import Image from 'next/image'
 import SearchBar from './ui/search-bar'
-import { useWallet } from '@/contexts/WalletProvide'
+import { useWallet } from '@/contexts/WalletProvider'
+import FaucetModal from './FaucetModal'
 
 const statliche = Staatliches({
     weight: ["400"],
@@ -16,6 +17,10 @@ const statliche = Staatliches({
 
 export default function Navbar() {
     const { isConnected, account, puffBalance, disconnectWallet } = useWallet();
+    const [isFaucetOpen, setIsFaucetOpen] = useState(false);
+
+    const balanceNum = parseFloat(puffBalance.replace(/,/g, '')) || 0;
+    const isLowBalance = balanceNum < 1000;
 
     return (
         <div className='flex items-center justify-between py-2 px-8 w-full border-b border-gray-500 z-10' >
@@ -26,8 +31,8 @@ export default function Navbar() {
                     <h1 className={`${statliche.className} text-2xl italic font-light border-r pr-3 border-gray-500 `}>{`PUFF {MARKET}`}</h1>
                 </Link>
 
-                <Link href="/create" className='mx-3 font-bold hover:text-gray-400'>
-                    Create
+                <Link href="/mint" className='mx-3 font-bold hover:text-gray-400'>
+                    Mint NFT
                 </Link>
                 <Link href="/auction" className='mx-3 font-bold hover:text-gray-400'>
                     Auctions
@@ -44,7 +49,17 @@ export default function Navbar() {
                             <span className='w-2 h-2 rounded-full bg-yellow-500 animate-pulse'></span>
                             {puffBalance} PUFF
                         </div>
-                        
+
+                        {/* Get PUFF Button (faucet) */}
+                        {isLowBalance && (
+                            <button
+                                onClick={() => setIsFaucetOpen(true)}
+                                className='bg-yellow-500 hover:bg-yellow-400 text-black font-extrabold text-xs px-3.5 py-1.5 rounded-full transition-all duration-200 shadow-md shadow-yellow-500/10 active:scale-95 cursor-pointer border border-yellow-400/20 mr-1'
+                            >
+                                Get PUFF
+                            </button>
+                        )}
+
                         {/* Shortened Address & Profile Link */}
                         <Link href="/account" className='flex items-center gap-2 hover:bg-gray-800/80 px-3 py-1.5 rounded-full transition-all duration-200 border border-transparent hover:border-gray-600/30' title="Go to Profile">
                             <div className='w-5 h-5 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-[10px] text-white font-bold uppercase shadow-sm'>
@@ -75,7 +90,11 @@ export default function Navbar() {
                     </div>
                 )}
             </div>
+
+            {/* Faucet Modal */}
+            <FaucetModal isOpen={isFaucetOpen} onClose={() => setIsFaucetOpen(false)} />
         </div>
     )
 }
+
 

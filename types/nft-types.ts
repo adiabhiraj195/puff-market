@@ -1,4 +1,4 @@
-import { User } from "@prisma/client";
+import { User } from "./user-type";
 
 export interface NftInterface {
     tokenId: string;
@@ -10,10 +10,15 @@ export interface NftInterface {
     isListed: boolean;
     createdAt: Date;
     updatedAt: Date;
-    owner: User
+    owner: User;
     listing?: {
-        price: string
-    }
+        price: string;
+        paymentToken?: string;
+    };
+    name?: string;
+    description?: string;
+    attributes?: any;
+    creatorAddress?: string;
 }
 
 export interface NftMetadataInteface {
@@ -35,6 +40,7 @@ export interface ListingInterface {
     nftId: string;
     sellerId: string;
     price: string;
+    paymentToken?: string;
     status: ListingStatus;
     createdAt: Date;
     updatedAt: Date;

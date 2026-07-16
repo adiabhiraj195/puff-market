@@ -1,9 +1,9 @@
 'use client';
 
-import { useWallet } from '@/contexts/WalletProvide';
+import { useWallet } from '@/contexts/WalletProvider';
 import walletImg from '../../assets/wallet.png'
 import Image from 'next/image';
-import { Staatliches, Outfit } from '@next/font/google'
+import { Staatliches, Outfit } from 'next/font/google'
 import { useEffect } from 'react';
 
 const statliche = Staatliches({
