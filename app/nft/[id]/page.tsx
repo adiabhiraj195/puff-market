@@ -245,6 +245,7 @@ export default function NftPage() {
                             tokenId={nft?.tokenId as string}
                             ownerId={nft?.ownerId as string}
                             nftId={nft?.id as string}
+                            paymentToken={nft?.listing?.paymentToken}
                             isOwner={isOwner}
                             onListClick={() => setIsListModalOpen(true)}
                             onBuyClick={() => setIsBuyModalOpen(true)}
@@ -278,6 +279,7 @@ export default function NftPage() {
                                 isOpen={isBuyModalOpen}
                                 onClose={() => setIsBuyModalOpen(false)}
                                 onSuccess={refetchNftData}
+                                paymentToken={nft.listing?.paymentToken}
                             />
                         )}
                     </div>

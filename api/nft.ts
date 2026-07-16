@@ -94,7 +94,7 @@ export async function getNftTransactions(nftId: string): Promise<GetNftTransacti
 /**
  * Create listing on backend for a confirmed listing transaction
  */
-export async function createListing(tokenId: string, price: string, txHash: string): Promise<{ success: boolean; listing: any }> {
-  const response = await axiosClient.post<{ success: boolean; listing: any }>('/api/listings', { tokenId, price, txHash });
+export async function createListing(tokenId: string, price: string, txHash: string, paymentToken?: string): Promise<{ success: boolean; listing: any }> {
+  const response = await axiosClient.post<{ success: boolean; listing: any }>('/api/listings', { tokenId, price, txHash, paymentToken });
   return response.data;
 }

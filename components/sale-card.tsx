@@ -2,6 +2,8 @@ import React from "react";
 import { FaShoppingCart, FaRegClock } from "react-icons/fa";
 import { FiTag } from "react-icons/fi";
 import { AiFillHeart } from "react-icons/ai";
+import { useReadContract } from 'wagmi';
+import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
 
 import Cancel_Listing_Button from "@/components/ui/buttons/cancel-listing-button";
 
@@ -11,6 +13,7 @@ const SaleCard = ({
     tokenId,
     ownerId,
     nftId,
+    paymentToken,
     isOwner = false,
     onListClick,
     onBuyClick,
@@ -21,11 +24,26 @@ const SaleCard = ({
     tokenId: string
     ownerId: string
     nftId: string
+    paymentToken?: string
     isOwner?: boolean
     onListClick?: () => void
     onBuyClick?: () => void
     onCancelSuccess?: () => void
 }) => {
+    const tokenAddress = paymentToken || PUFF_TOKEN_ADDRESS;
+    const isPuff = tokenAddress.toLowerCase() === PUFF_TOKEN_ADDRESS.toLowerCase();
+
+    // Fetch token symbol if not PUFF
+    const { data: tokenSymbol } = useReadContract({
+        address: tokenAddress as `0x${string}`,
+        abi: [{ constant: true, inputs: [], name: 'symbol', outputs: [{ name: '', type: 'string' }], payable: false, stateMutability: 'view', type: 'function' }] as const,
+        functionName: 'symbol',
+        query: {
+            enabled: !isPuff && !!tokenAddress,
+        }
+    });
+
+    const symbol = isPuff ? 'PUFF' : (tokenSymbol || 'Token');
 
     return (
         <div className="bg-[#121214]/65 backdrop-blur-md border border-neutral-800/80 my-5 text-white p-6 rounded-2xl w-full shadow-xl">
@@ -40,9 +58,9 @@ const SaleCard = ({
                 <p className="text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-2">Current price</p>
                 <div className="flex items-baseline gap-2">
                     <h1 className="text-4xl font-black bg-gradient-to-r from-white to-neutral-300 bg-clip-text text-transparent">
-                        {nftPrice ? `${Number(nftPrice).toLocaleString()} PUFF` : 'Not Listed'}
+                        {nftPrice ? `${Number(nftPrice).toLocaleString()} ${symbol}` : 'Not Listed'}
                     </h1>
-                    {nftPrice && (
+                    {nftPrice && isPuff && (
                         <span className="text-neutral-500 text-sm font-medium">
                             (~ ${(Number(nftPrice) * 0.05).toFixed(2)})
                         </span>

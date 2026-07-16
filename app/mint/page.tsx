@@ -216,9 +216,9 @@ export default function MintPage() {
                     if (confirmRes.data.success) {
                         const nftRecord = confirmRes.data.nft;
                         // Redirect to the detail page (resolved via UUID or TokenId)
-                        window.location.href = `/nft/${tokenIdStr || nftRecord.id}`;
+                        window.location.href = `/nft/${nftRecord.id}`;
                     } else {
-                        window.location.href = `/nft/${tokenIdStr || "0"}`;
+                        window.location.href = `/account`;
                     }
                 } catch (err: any) {
                     console.error("Backend confirm mint failure:", err);

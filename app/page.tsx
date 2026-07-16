@@ -5,6 +5,25 @@ import HeroSection from "@/components/hero";
 import { getNftListings } from "@/api/nft";
 import { ListingInterface } from "@/types/nft-types";
 import Link from 'next/link';
+import { useReadContract } from 'wagmi';
+import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
+
+function TokenSymbol({ address }: { address?: string }) {
+  const tokenAddress = address || "0x0000000000000000000000000000000000000000";
+  const isEth = tokenAddress === "0x0000000000000000000000000000000000000000";
+  const isPuff = !isEth && tokenAddress.toLowerCase() === PUFF_TOKEN_ADDRESS.toLowerCase();
+
+  const { data: symbol } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: [{ constant: true, inputs: [], name: 'symbol', outputs: [{ name: '', type: 'string' }], payable: false, stateMutability: 'view', type: 'function' }] as const,
+    functionName: 'symbol',
+    query: {
+      enabled: !isEth && !isPuff && !!tokenAddress,
+    }
+  });
+
+  return <span>{isEth ? 'ETH' : (isPuff ? 'PUFF' : (symbol || `${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}`))}</span>;
+}
 
 export default function Home() {
   const [listings, setListings] = useState<ListingInterface[]>([]);
@@ -255,7 +274,7 @@ export default function Home() {
                         <div className="flex justify-between items-center bg-[#0c0d10]/70 rounded-xl p-3 border border-gray-800/50">
                           <div>
                             <span className="text-[9px] text-gray-500 block uppercase font-bold tracking-wider mb-0.5">Price</span>
-                            <span className="text-sm font-black text-yellow-400">{Number(item.price).toLocaleString()} PUFF</span>
+                            <span className="text-sm font-black text-yellow-400">{Number(item.price).toLocaleString()} <TokenSymbol address={item.paymentToken} /></span>
                           </div>
                           <span className="text-[10px] font-black text-blue-400 group-hover:text-white transition-colors">
                             Buy Now →
@@ -298,7 +317,7 @@ export default function Home() {
                           </td>
                           <td className="py-4 px-4">
                             <span className="inline-flex items-center gap-1 text-sm font-black text-yellow-400">
-                              {Number(item.price).toLocaleString()} PUFF
+                              {Number(item.price).toLocaleString()} <TokenSymbol address={item.paymentToken} />
                             </span>
                           </td>
                           <td className="py-4 px-4 text-xs font-mono text-gray-400">

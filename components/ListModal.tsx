@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useWriteContract, usePublicClient } from 'wagmi';
-import { parseEther } from 'viem';
+import { parseUnits } from 'viem';
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from '@/constants/PuffNft';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { createListing } from '@/api/nft';
@@ -20,6 +20,13 @@ type TxState = 'idle' | 'signing' | 'pending' | 'confirmed' | 'error';
 
 export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }: ListModalProps) {
   const [price, setPrice] = useState('');
+  const [tokenType, setTokenType] = useState<'eth' | 'puff' | 'custom'>('eth');
+  const [customTokenAddress, setCustomTokenAddress] = useState('');
+  const [resolvedTokenSymbol, setResolvedTokenSymbol] = useState('ETH');
+  const [resolvedTokenDecimals, setResolvedTokenDecimals] = useState(18);
+  const [isValidatingToken, setIsValidatingToken] = useState(false);
+  const [tokenValidationError, setTokenValidationError] = useState('');
+
   const [step, setStep] = useState<1 | 2>(1);
   const [step1State, setStep1State] = useState<TxState>('idle');
   const [step2State, setStep2State] = useState<TxState>('idle');
@@ -30,6 +37,61 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
 
   if (!isOpen) return null;
 
+  const validateAndFetchToken = async (address: string) => {
+    if (!address.startsWith('0x') || address.length !== 42) {
+      setTokenValidationError('Invalid Ethereum address format');
+      setResolvedTokenSymbol('');
+      return;
+    }
+    if (!publicClient) return;
+    
+    setTokenValidationError('');
+    setIsValidatingToken(true);
+    try {
+      const symbol = await publicClient.readContract({
+        address: address as `0x${string}`,
+        abi: [
+          {
+            constant: true,
+            inputs: [],
+            name: 'symbol',
+            outputs: [{ name: '', type: 'string' }],
+            payable: false,
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ] as const,
+        functionName: 'symbol',
+      });
+      
+      const decimals = await publicClient.readContract({
+        address: address as `0x${string}`,
+        abi: [
+          {
+            constant: true,
+            inputs: [],
+            name: 'decimals',
+            outputs: [{ name: '', type: 'uint8' }],
+            payable: false,
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ] as const,
+        functionName: 'decimals',
+      });
+
+      setResolvedTokenSymbol(symbol);
+      setResolvedTokenDecimals(Number(decimals));
+      setTokenValidationError('');
+    } catch (err: any) {
+      console.error("[ListModal] Error reading token info:", err);
+      setTokenValidationError('Could not resolve token details. Ensure it is a valid ERC-20 contract.');
+      setResolvedTokenSymbol('');
+    } finally {
+      setIsValidatingToken(false);
+    }
+  };
+
   const handleList = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!price || isNaN(Number(price)) || Number(price) <= 0) {
@@ -37,10 +99,25 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
       return;
     }
 
+    if (tokenType === 'custom') {
+      if (!customTokenAddress.startsWith('0x') || customTokenAddress.length !== 42) {
+        setErrorMsg('Please enter a valid custom ERC-20 contract address');
+        return;
+      }
+      if (!resolvedTokenSymbol) {
+        setErrorMsg('Please verify your custom ERC-20 address first');
+        return;
+      }
+    }
+
     setErrorMsg('');
     try {
-      // Convert PUFF to Wei
-      const priceInWei = parseEther(price);
+      // Convert to base units using decimals
+      const decimalsToUse = tokenType === 'custom' ? resolvedTokenDecimals : 18;
+      const priceInWei = parseUnits(price, decimalsToUse);
+      const tokenAddress = tokenType === 'eth'
+        ? '0x0000000000000000000000000000000000000000'
+        : (tokenType === 'puff' ? PUFF_TOKEN_ADDRESS : customTokenAddress);
 
       // --- STEP 1: APPROVAL ---
       setStep(1);
@@ -67,12 +144,12 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
       setStep(2);
       setStep2State('signing');
 
-      console.log("[ListModal] Step 2: Listing item...");
+      console.log("[ListModal] Step 2: Listing item with token:", tokenAddress);
       const listHash = await writeContractAsync({
         address: MARKETPLACE_ADDRESS as `0x${string}`,
         abi: MARKETPLACE_ABI as any,
         functionName: 'listItem',
-        args: [PUFF_NFT_ADDRESS as `0x${string}`, BigInt(tokenId), priceInWei, PUFF_TOKEN_ADDRESS as `0x${string}`],
+        args: [PUFF_NFT_ADDRESS as `0x${string}`, BigInt(tokenId), priceInWei, tokenAddress as `0x${string}`],
       });
 
       setStep2State('pending');
@@ -86,7 +163,7 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
 
       // --- STEP 3: BACKEND NOTIFICATION ---
       console.log("[ListModal] Sending listing details to backend...");
-      await createListing(tokenId, price, listHash);
+      await createListing(tokenId, price, listHash, tokenAddress);
 
       // Success
       setTimeout(() => {
@@ -146,8 +223,103 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
 
         {!isProcessing ? (
           <form onSubmit={handleList} className="space-y-6">
+            
+            {/* Currency Choice */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">Listing Currency</label>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTokenType('eth');
+                    setResolvedTokenSymbol('ETH');
+                    setResolvedTokenDecimals(18);
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    tokenType === 'eth'
+                      ? 'border-blue-500 bg-blue-950/20 text-white shadow-md shadow-blue-500/10'
+                      : 'border-zinc-800 bg-[#16171b]/40 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Ethereum (ETH)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTokenType('puff');
+                    setResolvedTokenSymbol('PUFF');
+                    setResolvedTokenDecimals(18);
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    tokenType === 'puff'
+                      ? 'border-blue-500 bg-blue-950/20 text-white shadow-md shadow-blue-500/10'
+                      : 'border-zinc-800 bg-[#16171b]/40 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Puff (PUFF)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTokenType('custom');
+                    setResolvedTokenSymbol('');
+                    setResolvedTokenDecimals(18);
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    tokenType === 'custom'
+                      ? 'border-blue-500 bg-blue-950/20 text-white shadow-md shadow-blue-500/10'
+                      : 'border-zinc-800 bg-[#16171b]/40 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Custom ERC-20
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Token Address Input */}
+            {tokenType === 'custom' && (
+              <div className="space-y-2">
+                <label htmlFor="tokenAddress" className="block text-sm font-medium text-gray-300">
+                  ERC-20 Contract Address
+                </label>
+                <input
+                  type="text"
+                  id="tokenAddress"
+                  value={customTokenAddress}
+                  onChange={(e) => {
+                    const addr = e.target.value;
+                    setCustomTokenAddress(addr);
+                    if (addr.length === 42) {
+                      validateAndFetchToken(addr);
+                    } else {
+                      setResolvedTokenSymbol('');
+                    }
+                  }}
+                  className="w-full bg-[#16171b] border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                  placeholder="0x..."
+                  required
+                />
+                {isValidatingToken && (
+                  <p className="text-xs text-blue-400 flex items-center gap-1.5 animate-pulse">
+                    <span className="animate-spin inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full" />
+                    Validating token address...
+                  </p>
+                )}
+                {tokenValidationError && (
+                  <p className="text-xs text-red-400">{tokenValidationError}</p>
+                )}
+                {resolvedTokenSymbol && (
+                  <p className="text-xs text-green-400 font-semibold flex items-center gap-1">
+                    ✓ Verified: {resolvedTokenSymbol} ({resolvedTokenDecimals} decimals)
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-300 mb-2">Price in PUFF</label>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-300 mb-2">
+                Price in {resolvedTokenSymbol || 'Token'}
+              </label>
               <div className="relative rounded-md shadow-sm">
                 <input
                   type="number"
@@ -157,18 +329,19 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full bg-[#16171b] border border-gray-800 rounded-xl py-4 px-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="e.g. 1000"
+                  placeholder="e.g. 1"
                   required
                 />
                 <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                  <span className="text-gray-400 font-bold">PUFF</span>
+                  <span className="text-gray-400 font-bold">{resolvedTokenSymbol || 'Token'}</span>
                 </div>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-4 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg hover:shadow-blue-600/20 transition-all duration-200"
+              disabled={tokenType === 'custom' && !resolvedTokenSymbol}
+              className="w-full py-4 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg hover:shadow-blue-600/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               List Item
             </button>

@@ -12,7 +12,8 @@ export interface NftInterface {
     updatedAt: Date;
     owner: User;
     listing?: {
-        price: string
+        price: string;
+        paymentToken?: string;
     };
     name?: string;
     description?: string;
@@ -39,6 +40,7 @@ export interface ListingInterface {
     nftId: string;
     sellerId: string;
     price: string;
+    paymentToken?: string;
     status: ListingStatus;
     createdAt: Date;
     updatedAt: Date;
