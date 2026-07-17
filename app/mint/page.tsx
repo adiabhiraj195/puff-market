@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
 import { useWallet } from "@/contexts/WalletProvider";
 import axiosClient from "@/api/axiosClient";
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from "@/constants/PuffNft";
+import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI, MARKETPLACE_NFT_ABI } from "@/constants/NFTFactory";
+import { getUserCollections, registerCollection } from "@/api/nft";
 import Loading from "@/components/ui/Loading";
 import FlottingBackButton from "@/components/ui/floting-back-button";
 import { IoCloudUploadOutline, IoAdd, IoTrashOutline } from "react-icons/io5";
+
 
 interface Trait {
     key: string;
@@ -36,12 +39,22 @@ export default function MintPage() {
     const [tokenURI, setTokenURI] = useState("");
     const [ipfsMetadata, setIpfsMetadata] = useState<any>(null);
 
+    // Custom Collection States
+    const [collections, setCollections] = useState<any[]>([]);
+    const [selectedCollection, setSelectedCollection] = useState(PUFF_NFT_ADDRESS);
+    const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
+    const [newCollName, setNewCollName] = useState("");
+    const [newCollSymbol, setNewCollSymbol] = useState("");
+    const [isDeployingCollection, setIsDeployingCollection] = useState(false);
+
     // Wagmi Minting States
     const [mintState, setMintState] = useState<"idle" | "signing" | "pending" | "confirmed" | "error">("idle");
     const [errorMessage, setErrorMessage] = useState("");
 
-    const { data: hash, error: writeError, isPending: isWritePending, writeContract, reset: resetWrite } = useWriteContract();
+    const { data: hash, error: writeError, isPending: isWritePending, writeContract, writeContractAsync, reset: resetWrite } = useWriteContract();
     const { isLoading: isConfirming, isSuccess: isConfirmed, data: receipt } = useWaitForTransactionReceipt({ hash });
+    const publicClient = usePublicClient();
+
 
     // Handle Drag & Drop Events
     const handleDrag = (e: React.DragEvent) => {
@@ -142,18 +155,22 @@ export default function MintPage() {
     const handleMintNFT = () => {
         if (!account) return alert("Please reconnect your wallet.");
         if (!tokenURI) return alert("IPFS upload is not complete.");
-        // console.log(account, tokenURI, " consoled value")
         setErrorMessage("");
         setMintState("signing");
 
+        const isDefault = selectedCollection.toLowerCase() === PUFF_NFT_ADDRESS.toLowerCase();
+
         writeContract({
-            address: PUFF_NFT_ADDRESS as `0x${string}`,
-            abi: PUFF_NFT_ABI as any,
-            functionName: "mintNFT",
-            args: [account as `0x${string}`, tokenURI],
+            address: selectedCollection as `0x${string}`,
+            abi: (isDefault ? PUFF_NFT_ABI : MARKETPLACE_NFT_ABI) as any,
+            functionName: isDefault ? "mintNFT" : "mint",
+            args: isDefault 
+                ? [account as `0x${string}`, tokenURI]
+                : [account as `0x${string}`],
             gas: 500000n
         });
     };
+
 
     // Track signature & contract pending status
     useEffect(() => {
@@ -211,6 +228,7 @@ export default function MintPage() {
                         tokenId: tokenIdStr || "0", // Fallback to 0 if decoding fails
                         metadataURI: tokenURI,
                         metadata: ipfsMetadata,
+                        contractAddress: selectedCollection
                     });
 
                     if (confirmRes.data.success) {
@@ -228,7 +246,92 @@ export default function MintPage() {
             };
             confirmOnBackend();
         }
-    }, [isConfirmed, receipt, tokenURI, ipfsMetadata]);
+    }, [isConfirmed, receipt, tokenURI, ipfsMetadata, selectedCollection]);
+
+    const fetchCollections = async () => {
+        try {
+            const data = await getUserCollections();
+            setCollections(data || []);
+        } catch (err) {
+            console.error("Failed to load user collections:", err);
+        }
+    };
+
+    useEffect(() => {
+        if (isConnected && account) {
+            fetchCollections();
+        }
+    }, [isConnected, account]);
+    const handleDeployCollection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCollName || !newCollSymbol) return alert("Please enter collection name and symbol.");
+        if (!account) return alert("Wallet not connected.");
+        
+        setIsDeployingCollection(true);
+        try {
+            console.log("[Deploy Collection] Deploying EIP-1167 cloned collection contract...");
+            const hash = await writeContractAsync({
+                address: NFT_FACTORY_ADDRESS as `0x${string}`,
+                abi: NFT_FACTORY_ABI as any,
+                functionName: "createCollection",
+                args: [newCollName, newCollSymbol],
+            });
+
+            console.log("[Deploy Collection] Tx Hash:", hash);
+            if (publicClient) {
+                const receipt = await publicClient.waitForTransactionReceipt({ hash });
+                console.log("[Deploy Collection] Tx Confirmed, receipt logs:", receipt.logs);
+                
+                // Find and decode the CollectionCreated event
+                let cloneAddress = "";
+                for (const log of receipt.logs) {
+                    try {
+                        const decoded = decodeEventLog({
+                            abi: NFT_FACTORY_ABI,
+                            data: log.data,
+                            topics: log.topics,
+                        });
+                        if (decoded.eventName === "CollectionCreated") {
+                            cloneAddress = (decoded.args as any)?.cloneAddress;
+                            break;
+                        }
+                    } catch (e) {
+                        // ignore parsing other logs
+                    }
+                }
+
+                if (!cloneAddress) {
+                    throw new Error("CollectionCreated event not found in tx receipt.");
+                }
+
+                console.log("[Deploy Collection] Cloned collection contract address:", cloneAddress);
+                
+                // Register in backend
+                const regRes = await registerCollection({
+                    contractAddress: cloneAddress,
+                    name: newCollName,
+                    symbol: newCollSymbol
+                });
+
+                if (regRes.success) {
+                    alert(`Collection "${newCollName}" deployed and registered successfully!`);
+                    await fetchCollections();
+                    setSelectedCollection(cloneAddress);
+                    setNewCollName("");
+                    setNewCollSymbol("");
+                    setIsDeployModalOpen(false);
+                } else {
+                    throw new Error("Failed to register collection on backend.");
+                }
+            }
+        } catch (err: any) {
+            console.error("Failed to deploy collection:", err);
+            alert(err.shortMessage || err.message || "Failed to deploy collection.");
+        } finally {
+            setIsDeployingCollection(false);
+        }
+    };
+
 
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -390,9 +493,36 @@ export default function MintPage() {
                         <form onSubmit={handleUploadToIPFS} className="flex flex-col gap-5">
                             <h3 className="text-lg font-bold text-zinc-200 border-b border-zinc-800 pb-3">NFT Details</h3>
 
+                            {/* Collection Selection */}
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-300 mb-1.5 flex justify-between items-center">
+                                    <span>NFT Collection *</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsDeployModalOpen(true)}
+                                        className="text-xs font-bold text-blue-400 hover:text-blue-300 cursor-pointer transition-colors"
+                                    >
+                                        + Deploy New Collection
+                                    </button>
+                                </label>
+                                <select
+                                    value={selectedCollection}
+                                    onChange={(e) => setSelectedCollection(e.target.value)}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 focus:outline-none focus:border-blue-500 transition-all text-sm cursor-pointer"
+                                >
+                                    <option value={PUFF_NFT_ADDRESS}>Default Puff NFT Collection</option>
+                                    {collections.map((col) => (
+                                        <option key={col.contractAddress} value={col.contractAddress}>
+                                            {col.name} ({col.symbol})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             {/* Name */}
                             <div>
                                 <label className="block text-sm font-bold text-zinc-300 mb-1.5">Asset Name *</label>
+
                                 <input
                                     type="text"
                                     placeholder="Enter your NFT name"
@@ -633,6 +763,94 @@ export default function MintPage() {
                     )}
                 </div>
             </div>
+
+            {/* DEPLOY NEW COLLECTION MODAL */}
+            {isDeployModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b border-zinc-800/80 px-6 py-4">
+                            <h2 className="text-xl font-bold text-white">Deploy Custom NFT Collection</h2>
+                            <button
+                                onClick={() => setIsDeployModalOpen(false)}
+                                disabled={isDeployingCollection}
+                                className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                            >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleDeployCollection} className="p-6 flex flex-col gap-4">
+                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                Deploys an ERC-721 collection contract using the ERC1167 Minimal Proxy pattern. Setup cost is ~95% cheaper than normal deployment. You will be the owner.
+                            </p>
+
+                            {/* Name */}
+                            <div>
+                                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+                                    Collection Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. My Custom Collection"
+                                    value={newCollName}
+                                    onChange={(e) => setNewCollName(e.target.value)}
+                                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 focus:outline-none rounded-xl px-4 py-2.5 text-zinc-100 placeholder-zinc-700 text-sm font-semibold transition-all"
+                                    required
+                                    disabled={isDeployingCollection}
+                                />
+                            </div>
+
+                            {/* Symbol */}
+                            <div>
+                                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+                                    Collection Symbol *
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. MCC"
+                                    value={newCollSymbol}
+                                    onChange={(e) => setNewCollSymbol(e.target.value)}
+                                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 focus:outline-none rounded-xl px-4 py-2.5 text-zinc-100 placeholder-zinc-700 text-sm font-semibold transition-all"
+                                    required
+                                    disabled={isDeployingCollection}
+                                />
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <div className="flex gap-3 justify-end border-t border-zinc-800/80 pt-5 mt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDeployModalOpen(false)}
+                                    disabled={isDeployingCollection}
+                                    className="px-4 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white font-bold text-sm transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isDeployingCollection}
+                                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    {isDeployingCollection ? (
+                                        <>
+                                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            Deploying...
+                                        </>
+                                    ) : (
+                                        "Deploy Collection"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+

@@ -236,6 +236,7 @@ export default function NftPage() {
                             name={metadata?.name as string}
                             tokenId={nft?.tokenId as string}
                             owner={nft?.owner?.address as string}
+                            collection={nft?.collection}
                         />
 
                         {/* Sales Card */}
@@ -266,6 +267,7 @@ export default function NftPage() {
                                 isOpen={isListModalOpen}
                                 onClose={() => setIsListModalOpen(false)}
                                 onSuccess={refetchNftData}
+                                nftAddress={nft.contractAddress}
                             />
                         )}
 
@@ -280,8 +282,10 @@ export default function NftPage() {
                                 onClose={() => setIsBuyModalOpen(false)}
                                 onSuccess={refetchNftData}
                                 paymentToken={nft.listing?.paymentToken}
+                                nftAddress={nft.contractAddress}
                             />
                         )}
+
                     </div>
                 </div>
             )}

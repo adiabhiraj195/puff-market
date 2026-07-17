@@ -98,3 +98,36 @@ export async function createListing(tokenId: string, price: string, txHash: stri
   const response = await axiosClient.post<{ success: boolean; listing: any }>('/api/listings', { tokenId, price, txHash, paymentToken });
   return response.data;
 }
+
+/**
+ * Register a newly deployed custom collection clone in the backend database.
+ */
+export async function registerCollection(payload: { contractAddress: string; name: string; symbol: string }): Promise<{ success: boolean; collection: any }> {
+  const response = await axiosClient.post<{ success: boolean; collection: any }>('/api/collections', payload);
+  return response.data;
+}
+
+/**
+ * Fetch all collections deployed/owned by the current user.
+ */
+export async function getUserCollections(): Promise<any[]> {
+  const response = await axiosClient.get<any[]>('/api/collections/user');
+  return response.data;
+}
+
+/**
+ * Fetch details of a single collection by its contract address.
+ */
+export async function getCollectionDetails(contractAddress: string): Promise<any> {
+  const response = await axiosClient.get<any>(`/api/collections/${contractAddress}`);
+  return response.data;
+}
+
+/**
+ * Fetch all deployed collections on the platform.
+ */
+export async function getAllCollections(): Promise<any[]> {
+  const response = await axiosClient.get<any[]>(`/api/collections/all`);
+  return response.data;
+}
+

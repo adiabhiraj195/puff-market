@@ -106,7 +106,9 @@ const HeroSection = ({ nftItems }: { nftItems: any }) => {
                                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent border-t border-white/5 backdrop-blur-[2px]">
                                         <div className="flex justify-between items-end">
                                             <div>
-                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5">Puff Collection</p>
+                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5 truncate max-w-[200px]" title={nft.nft.collection ? `${nft.nft.collection.name} (${nft.nft.collection.symbol})` : 'Puff Collection (PUFF)'}>
+                                                    {nft.nft.collection ? `${nft.nft.collection.name} (${nft.nft.collection.symbol})` : 'Puff Collection (PUFF)'}
+                                                </p>
                                                 <p className="text-lg font-black text-white">Token #{nft.nft.tokenId}</p>
                                             </div>
                                             <div className="text-right">

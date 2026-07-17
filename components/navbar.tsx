@@ -37,6 +37,9 @@ export default function Navbar() {
                 <Link href="/auction" className='mx-3 font-bold hover:text-gray-400'>
                     Auctions
                 </Link>
+                <Link href="/collection" className='mx-3 font-bold hover:text-gray-400'>
+                    Collections
+                </Link>
             </div>
 
             <SearchBar />

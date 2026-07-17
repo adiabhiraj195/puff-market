@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import HeroSection from "@/components/hero";
-import { getNftListings } from "@/api/nft";
+import { getNftListings, getAllCollections } from "@/api/nft";
 import { ListingInterface } from "@/types/nft-types";
 import Link from 'next/link';
 import { useReadContract } from 'wagmi';
@@ -30,6 +30,7 @@ export default function Home() {
   const [filteredListings, setFilteredListings] = useState<ListingInterface[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [collectionsCount, setCollectionsCount] = useState<number>(1);
 
   // States for search and filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -44,8 +45,12 @@ export default function Home() {
     else setLoading(true);
 
     try {
-      const data = await getNftListings();
-      setListings(data || []);
+      const [listingsData, collectionsData] = await Promise.all([
+        getNftListings(),
+        getAllCollections().catch(() => [])
+      ]);
+      setListings(listingsData || []);
+      setCollectionsCount(collectionsData && collectionsData.length > 0 ? collectionsData.length : 1);
     } catch (err) {
       console.error("Failed to fetch listings:", err);
     } finally {
@@ -114,7 +119,7 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-[#0c0d11]/80 border border-gray-800/80 rounded-2xl backdrop-blur-md shadow-2xl">
             <div>
               <span className="text-xs text-gray-500 uppercase tracking-wider block font-bold mb-1">Collections</span>
-              <span className="text-2xl font-black text-white">1</span>
+              <span className="text-2xl font-black text-white">{collectionsCount}</span>
             </div>
             <div>
               <span className="text-xs text-gray-500 uppercase tracking-wider block font-bold mb-1">Floor Price</span>
@@ -265,8 +270,24 @@ export default function Home() {
                       </div>
                       <div className="p-4 flex-1 flex flex-col justify-between">
                         <div className="mb-3">
-                          <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-0.5">Puff Collection</p>
-                          <h3 className="text-sm font-black text-white truncate">NFT Asset</h3>
+                          {item.nft.collection ? (
+                            <span 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (item.nft.collection) {
+                                  window.location.href = `/collection/${item.nft.collection.contractAddress}`;
+                                }
+                              }} 
+                              className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-wider mb-0.5 block hover:underline cursor-pointer truncate max-w-[200px]"
+                              title={`${item.nft.collection.name} (${item.nft.collection.symbol})`}
+                            >
+                              {item.nft.collection.name} ({item.nft.collection.symbol})
+                            </span>
+                          ) : (
+                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-0.5">Puff Collection (PUFF)</p>
+                          )}
+                          <h3 className="text-sm font-black text-white truncate">{item.nft.name || "NFT Asset"}</h3>
                           <p className="text-[10px] text-gray-500 mt-1.5 font-mono truncate">
                             Seller: {item.seller.address.slice(0, 6)}...{item.seller.address.slice(-4)}
                           </p>
@@ -311,8 +332,18 @@ export default function Home() {
                               className="w-12 h-12 rounded-xl object-cover bg-[#0d0e12] border border-gray-800/80 shadow-md"
                             />
                             <div>
-                              <span className="font-bold text-white block text-sm">Token #{item.nft.tokenId}</span>
-                              <span className="text-[9px] text-gray-500 uppercase font-black tracking-wider block">Puff Collection</span>
+                              <span className="font-bold text-white block text-sm">{item.nft.name || `Token #${item.nft.tokenId}`}</span>
+                               {item.nft.collection ? (
+                                 <Link 
+                                   href={`/collection/${item.nft.collection.contractAddress}`}
+                                   className="text-[9px] text-blue-500 hover:text-blue-400 uppercase font-black tracking-wider block hover:underline truncate max-w-[150px]"
+                                   title={`${item.nft.collection.name} (${item.nft.collection.symbol})`}
+                                 >
+                                   {item.nft.collection.name} ({item.nft.collection.symbol})
+                                 </Link>
+                               ) : (
+                                 <span className="text-[9px] text-gray-500 uppercase font-black tracking-wider block">Puff Collection (PUFF)</span>
+                               )}
                             </div>
                           </td>
                           <td className="py-4 px-4">

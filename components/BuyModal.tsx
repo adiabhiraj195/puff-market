@@ -20,11 +20,13 @@ interface BuyModalProps {
   onClose: () => void;
   onSuccess: () => void;
   paymentToken?: string;
+  nftAddress?: string;
 }
 
 type TxState = 'idle' | 'signing' | 'pending' | 'confirmed' | 'error';
 
-export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onClose, onSuccess, paymentToken }: BuyModalProps) {
+export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onClose, onSuccess, paymentToken, nftAddress }: BuyModalProps) {
+
 
   const { puffBalance, refetchBalance } = useWallet();
   const { address: userAddress } = useAccount();
@@ -137,14 +139,17 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
       setStep2State('signing');
       console.log("[BuyModal] Step 2: Buying NFT... at price : ", priceInWei);
 
+      const targetNftAddress = (nftAddress || PUFF_NFT_ADDRESS) as `0x${string}`;
+
       const buyHash = await writeContractAsync({
         address: MARKETPLACE_ADDRESS as `0x${string}`,
         abi: MARKETPLACE_ABI as any,
         functionName: 'buyItem',
-        args: [PUFF_NFT_ADDRESS as `0x${string}`, BigInt(tokenId)],
+        args: [targetNftAddress, BigInt(tokenId)],
         value: isEth ? priceInWei : 0n,
         gas: 500000n,
       });
+
 
       setStep2State('pending');
       console.log("[BuyModal] Step 2 Buy tx hash:", buyHash);

@@ -3,15 +3,21 @@ import { FaHandshake } from "react-icons/fa"; // For handshake icon
 import { FiShare2, FiExternalLink, FiCopy } from "react-icons/fi"; // Icons
 import { HiDotsHorizontal } from "react-icons/hi"; // For three dots
 import { MdVerified } from "react-icons/md"; // Verified icon
+import Link from "next/link";
 
 const ListingHeader = ({
     name,
     tokenId,
-    owner
+    owner,
+    collection
 }: {
     name: string
     tokenId: string
     owner: string
+    collection?: {
+        name: string;
+        contractAddress: string;
+    } | null
 }) => {
     const handleCopy = () => {
         if (owner) {
@@ -28,9 +34,18 @@ const ListingHeader = ({
         <div className="text-white pb-6 pt-2 flex flex-col md:flex-row w-full justify-between items-start md:items-center gap-4">
             <div>
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold tracking-widest text-blue-400 uppercase">
-                        Puff NFT Collection
-                    </span>
+                    {collection ? (
+                        <Link 
+                            href={`/collection/${collection.contractAddress}`}
+                            className="text-xs font-semibold tracking-widest text-blue-400 hover:text-blue-300 uppercase hover:underline"
+                        >
+                            {collection.name}
+                        </Link>
+                    ) : (
+                        <span className="text-xs font-semibold tracking-widest text-blue-400 uppercase">
+                            Puff NFT Collection
+                        </span>
+                    )}
                     <MdVerified className="text-blue-400" size={14} />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent flex items-center gap-3">
