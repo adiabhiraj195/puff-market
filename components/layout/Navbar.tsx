@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react'
-import WalletConnectButton from './ui/buttons/connect-button'
+import WalletConnectButton from './ConnectWalletButton'
 import Link from 'next/link'
-import { Staatliches } from 'next/font/google'
-import logo from './assets/full-moon-transparent-4.png'
+import { Staatliches } from '@/lib/fonts'
+import logo from '@/components/assets/full-moon-transparent-4.png'
 import Image from 'next/image'
-import SearchBar from './ui/search-bar'
+import SearchBar from '@/components/ui/SearchBar'
 import { useWallet } from '@/contexts/WalletProvider'
-import FaucetModal from './FaucetModal'
+import FaucetModal from '@/components/features/FaucetModal'
 
 const statliche = Staatliches({
     weight: ["400"],
@@ -34,11 +34,11 @@ export default function Navbar() {
                 <Link href="/mint" className='mx-3 font-bold hover:text-gray-400'>
                     Mint NFT
                 </Link>
-                <Link href="/auction" className='mx-3 font-bold hover:text-gray-400'>
-                    Auctions
-                </Link>
                 <Link href="/collection" className='mx-3 font-bold hover:text-gray-400'>
                     Collections
+                </Link>
+                <Link href="/auction" className='mx-3 font-bold hover:text-gray-400'>
+                    Auctions
                 </Link>
             </div>
 

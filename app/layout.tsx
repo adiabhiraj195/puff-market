@@ -5,8 +5,8 @@ import { WalletProvider } from "@/contexts/WalletProvider";
 import { Apolloprovider } from "@/apolloProvider";
 import { Provider } from "./provider";
 import { Web3Provider } from "@/contexts/Web3Provider";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "Puff Market",

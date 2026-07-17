@@ -5,7 +5,7 @@ import { AiFillHeart } from "react-icons/ai";
 import { useReadContract } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
 
-import Cancel_Listing_Button from "@/components/ui/buttons/cancel-listing-button";
+import Cancel_Listing_Button from "@/components/features/CancelListingButton";
 
 const SaleCard = ({
     nftPrice,

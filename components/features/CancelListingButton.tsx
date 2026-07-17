@@ -5,7 +5,7 @@ import { cancelListing } from '@/api/nft';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 
-import { Outfit, Staatliches } from "next/font/google";
+import { Outfit, Staatliches } from "@/lib/fonts";
 
 const statliche = Staatliches({
     weight: ["400"],

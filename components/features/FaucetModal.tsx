@@ -5,7 +5,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
 import { useWallet } from '@/contexts/WalletProvider';
 import { IoClose } from 'react-icons/io5';
-import { Staatliches, Outfit } from 'next/font/google';
+import { Staatliches, Outfit } from '@/lib/fonts';
 
 const statliche = Staatliches({
   weight: ["400"],

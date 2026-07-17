@@ -8,7 +8,7 @@ import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS } from '@/constants/Marketplace';
 import { PUFF_NFT_ADDRESS } from '@/constants/PuffNft';
 import { ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
-import FaucetModal from '@/components/FaucetModal';
+import FaucetModal from '@/components/features/FaucetModal';
 import { buyNft } from '@/api/nft';
 
 interface BuyModalProps {

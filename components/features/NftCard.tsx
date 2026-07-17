@@ -1,4 +1,4 @@
-import { Outfit } from "next/font/google";
+import { Outfit } from "@/lib/fonts";
 import { useReadContract } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
 
