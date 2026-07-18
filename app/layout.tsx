@@ -29,7 +29,7 @@ export default function RootLayout({
               <Apolloprovider>
                 <div className="flex flex-col min-h-screen bg-[#060709] text-white">
                   <Navbar />
-                  <main className="flex-grow w-full">
+                  <main className="flex-grow w-full pt-20">
                     {children}
                   </main>
                   <Footer />
