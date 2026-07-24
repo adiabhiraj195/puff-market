@@ -3,7 +3,7 @@ import { IoSearchSharp } from "react-icons/io5";
 
 const SearchBar = () => {
     return (
-        <div className="flex items-center bg-zinc-900/40 border border-zinc-800/80 focus-within:border-blue-500/40 focus-within:bg-zinc-900/70 rounded-xl px-3.5 py-1.5 w-96 hover:bg-zinc-900/60 focus-within:shadow-lg focus-within:shadow-blue-500/5 transition-all duration-300">
+        <div id="tour-search-bar" className="flex items-center bg-zinc-900/40 border border-zinc-800/80 focus-within:border-blue-500/40 focus-within:bg-zinc-900/70 rounded-xl px-3.5 py-1.5 w-96 hover:bg-zinc-900/60 focus-within:shadow-lg focus-within:shadow-blue-500/5 transition-all duration-300">
             <IoSearchSharp className='text-zinc-400 font-extrabold text-lg mr-2 focus-within:text-blue-500 transition-colors' />
 
             <input

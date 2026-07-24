@@ -101,15 +101,17 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10 space-y-12">
           
           {/* Market Overview Stats Banner */}
-          <MarketStats
-            collectionsCount={collectionsCount}
-            floorPrice={floorPrice}
-            totalVolume={totalVolume}
-            listingsCount={listings.length}
-          />
+          <div id="tour-market-stats">
+            <MarketStats
+              collectionsCount={collectionsCount}
+              floorPrice={floorPrice}
+              totalVolume={totalVolume}
+              listingsCount={listings.length}
+            />
+          </div>
 
           {/* Featured Carousels / Hero Section */}
-          <div className="space-y-4">
+          <div id="tour-featured-drops" className="space-y-4">
             <div className="flex justify-between items-end">
               <div>
                 <h2 className="text-2xl font-black tracking-tight text-white">Featured Drops</h2>
@@ -133,17 +135,19 @@ export default function Home() {
           <div className="space-y-6">
             
             {/* Filter and layout control bar */}
-            <ListingFilters
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              sortOption={sortOption}
-              setSortOption={setSortOption}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              categories={categories}
-            />
+            <div id="tour-listing-filters">
+              <ListingFilters
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortOption={sortOption}
+                setSortOption={setSortOption}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                categories={categories}
+              />
+            </div>
 
             {/* List and grid displays */}
             {loading ? (

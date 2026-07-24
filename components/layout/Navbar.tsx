@@ -60,13 +60,13 @@ export default function Navbar() {
                     <h1 className={`${statliche.className} text-xl italic font-light tracking-wide bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent border-r pr-4 border-zinc-800/80`}>{`PUFF {MARKET}`}</h1>
                 </Link>
 
-                <Link href="/mint" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
+                <Link href="/mint" id="tour-mint-nft" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
                     Mint NFT
                 </Link>
-                <Link href="/collection" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
+                <Link href="/collection" id="tour-collections" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
                     Collections
                 </Link>
-                <Link href="/auction" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
+                <Link href="/auction" id="tour-auctions" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
                     Auctions
                 </Link>
             </div>
@@ -75,7 +75,7 @@ export default function Navbar() {
 
             <div className='flex gap-4 items-center'>
                 {isConnected ? (
-                    <div className='flex items-center gap-3 bg-zinc-950/65 backdrop-blur-md border border-zinc-800/80 rounded-full pl-4 pr-2 py-1.5 shadow-lg shadow-black/35'>
+                    <div id="tour-wallet-status" className='flex items-center gap-3 bg-zinc-950/65 backdrop-blur-md border border-zinc-800/80 rounded-full pl-4 pr-2 py-1.5 shadow-lg shadow-black/35'>
                         {/* PUFF Balance */}
                         <div className='flex items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20'>
                             <span className='w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse'></span>
@@ -93,7 +93,7 @@ export default function Navbar() {
                         )}
 
                         {/* Shortened Address & Profile Link */}
-                        <Link href="/account" className='flex items-center gap-2 hover:bg-zinc-800/50 px-2.5 py-1 rounded-full transition-all duration-200 border border-transparent hover:border-zinc-700/30' title="Go to Profile">
+                        <Link href="/account" id="tour-profile" className='flex items-center gap-2 hover:bg-zinc-800/50 px-2.5 py-1 rounded-full transition-all duration-200 border border-transparent hover:border-zinc-700/30' title="Go to Profile">
                             <div className='w-5.5 h-5.5 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-650 flex items-center justify-center text-[10px] text-white font-black uppercase shadow-inner'>
                                 {account ? account.slice(2, 4) : "U"}
                             </div>
