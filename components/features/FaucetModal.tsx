@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
 import { useWallet } from '@/contexts/WalletProvider';
 import { IoClose } from 'react-icons/io5';
-import { Staatliches, Outfit } from 'next/font/google';
+import { Staatliches, Outfit } from '@/lib/fonts';
 
 const statliche = Staatliches({
   weight: ["400"],
@@ -26,8 +27,13 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
   const { address } = useAccount();
   const { refetchBalance } = useWallet();
 
+  const [mounted, setMounted] = useState<boolean>(false);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 1. Read: PuffToken.hasClaimedBonus(address)
   const { data: hasClaimedBonus, refetch: refetchHasClaimedBonus } = useReadContract({
@@ -146,7 +152,20 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
     onClose();
   };
 
-  if (!isOpen) return null;
+  // Close on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && txState !== 'signing' && txState !== 'pending') {
+        handleClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, txState]);
+
+  if (!isOpen || !mounted) return null;
 
   const handleClaim = () => {
     setErrorMessage('');
@@ -174,22 +193,32 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
   const isFirstTime = !hasClaimedBonus;
   const claimAmount = isFirstTime ? '6,000' : '1,000';
 
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${outfit.className}`}>
+  return createPortal(
+    <div 
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto ${outfit.className}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && txState !== 'signing' && txState !== 'pending') {
+          handleClose();
+        }
+      }}
+    >
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300"
+        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
         onClick={txState === 'signing' || txState === 'pending' ? undefined : handleClose}
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-zinc-950/90 backdrop-blur-xl border border-zinc-800/80 p-8 shadow-2xl shadow-yellow-500/5 transition-all transform scale-100 duration-300">
+      <div 
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-zinc-950/95 backdrop-blur-xl border border-zinc-800/80 p-8 shadow-2xl shadow-yellow-500/5 transition-all transform scale-100 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Close Button */}
         {txState !== 'signing' && txState !== 'pending' && (
           <button 
             onClick={handleClose}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-full bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/40 transition-all cursor-pointer"
+            className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-full bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/40 transition-all cursor-pointer z-10"
             title="Close"
           >
             <IoClose size={20} />
@@ -348,6 +377,8 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
         )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
+

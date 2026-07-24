@@ -5,8 +5,9 @@ import { WalletProvider } from "@/contexts/WalletProvider";
 import { Apolloprovider } from "@/apolloProvider";
 import { Provider } from "./provider";
 import { Web3Provider } from "@/contexts/Web3Provider";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import OnboardingTutorial from "@/components/features/OnboardingTutorial";
 
 export const metadata: Metadata = {
   title: "Puff Market",
@@ -29,7 +30,8 @@ export default function RootLayout({
               <Apolloprovider>
                 <div className="flex flex-col min-h-screen bg-[#060709] text-white">
                   <Navbar />
-                  <main className="flex-grow w-full">
+                  <OnboardingTutorial />
+                  <main className="flex-grow w-full pt-20">
                     {children}
                   </main>
                   <Footer />

@@ -14,11 +14,12 @@ interface ListModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  nftAddress?: string;
 }
 
 type TxState = 'idle' | 'signing' | 'pending' | 'confirmed' | 'error';
 
-export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }: ListModalProps) {
+export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, nftAddress }: ListModalProps) {
   const [price, setPrice] = useState('');
   const [tokenType, setTokenType] = useState<'eth' | 'puff' | 'custom'>('eth');
   const [customTokenAddress, setCustomTokenAddress] = useState('');
@@ -123,9 +124,11 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
       setStep(1);
       setStep1State('signing');
 
+      const targetNftAddress = (nftAddress || PUFF_NFT_ADDRESS) as `0x${string}`;
+
       console.log("[ListModal] Step 1: Approving marketplace...");
       const approveHash = await writeContractAsync({
-        address: PUFF_NFT_ADDRESS as `0x${string}`,
+        address: targetNftAddress,
         abi: PUFF_NFT_ABI as any,
         functionName: 'approve',
         args: [MARKETPLACE_ADDRESS as `0x${string}`, BigInt(tokenId)],
@@ -149,7 +152,7 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
         address: MARKETPLACE_ADDRESS as `0x${string}`,
         abi: MARKETPLACE_ABI as any,
         functionName: 'listItem',
-        args: [PUFF_NFT_ADDRESS as `0x${string}`, BigInt(tokenId), priceInWei, tokenAddress as `0x${string}`],
+        args: [targetNftAddress, BigInt(tokenId), priceInWei, tokenAddress as `0x${string}`],
       });
 
       setStep2State('pending');
@@ -163,7 +166,9 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess }
 
       // --- STEP 3: BACKEND NOTIFICATION ---
       console.log("[ListModal] Sending listing details to backend...");
-      await createListing(tokenId, price, listHash, tokenAddress);
+      const dbTokenId = `${targetNftAddress.toLowerCase()}-${tokenId}`;
+      await createListing(dbTokenId, price, listHash, tokenAddress);
+
 
       // Success
       setTimeout(() => {

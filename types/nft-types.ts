@@ -19,6 +19,13 @@ export interface NftInterface {
     description?: string;
     attributes?: any;
     creatorAddress?: string;
+    collectionAddress?: string | null;
+    collection?: {
+        id: string;
+        name: string;
+        symbol: string;
+        contractAddress: string;
+    } | null;
 }
 
 export interface NftMetadataInteface {
@@ -47,9 +54,22 @@ export interface ListingInterface {
     nft: {
         imageURI: string;
         tokenId: string;
+        name?: string;
+        description?: string;
+        mediaType?: string;
+        contractAddress?: string;
+        collectionAddress?: string | null;
+        collection?: {
+            id: string;
+            name: string;
+            symbol: string;
+            contractAddress: string;
+        } | null;
     }
     seller: {
-        address: string
+        address: string;
+        id?: string;
+        username?: string | null;
     }
 }
 
