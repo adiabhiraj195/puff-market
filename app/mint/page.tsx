@@ -44,7 +44,7 @@ export default function MintPage() {
 
     // Custom Collection States
     const [collections, setCollections] = useState<any[]>([]);
-    const [selectedCollection, setSelectedCollection] = useState(PUFF_NFT_ADDRESS);
+    const [selectedCollection, setSelectedCollection] = useState<string>(PUFF_NFT_ADDRESS);
     const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
     const [newCollName, setNewCollName] = useState("");
     const [newCollSymbol, setNewCollSymbol] = useState("");
@@ -190,7 +190,7 @@ export default function MintPage() {
             address: selectedCollection as `0x${string}`,
             abi: (isDefault ? PUFF_NFT_ABI : MARKETPLACE_NFT_ABI) as any,
             functionName: isDefault ? "mintNFT" : "mint",
-            args: isDefault 
+            args: isDefault
                 ? [account as `0x${string}`, tokenURI]
                 : [account as `0x${string}`],
             gas: 500000n
@@ -311,7 +311,7 @@ export default function MintPage() {
                             cloneAddress = (decoded.args as any)?.cloneAddress;
                             break;
                         }
-                    } catch (err) {}
+                    } catch (err) { }
                 }
 
                 if (!cloneAddress) {
@@ -332,7 +332,7 @@ export default function MintPage() {
                     setIsDeployModalOpen(false);
                     // Refresh collection options
                     await fetchCollections();
-                    setSelectedCollection(cloneAddress);
+                    setSelectedCollection(cloneAddress as `0x${string}`);
                 } else {
                     throw new Error("Failed to register collection on backend.");
                 }
