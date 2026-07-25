@@ -160,7 +160,7 @@ export default function OnboardingTutorial() {
     const element = document.querySelector(step.selector);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
-      
+
       // Wait for smooth scroll completion before calculating coordinates
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = setTimeout(updatePosition, 350);
@@ -351,7 +351,7 @@ export default function OnboardingTutorial() {
                   <h3 className="font-bold text-base text-zinc-100">Proof of Data</h3>
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Every asset is secured using an immutable cryptographic blueprint. Files are uploaded to decentralized storage (IPFS), generating a unique content identifier hash. 
+                  Every asset is secured using an immutable cryptographic blueprint. Files are uploaded to decentralized storage (IPFS), generating a unique content identifier hash.
                 </p>
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   This hash is permanently anchored inside the smart contract on the blockchain. Any user can mathematically verify that the image or metadata matches what is on-chain, proving authenticity and lineage.

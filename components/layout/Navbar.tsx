@@ -25,7 +25,7 @@ export default function Navbar() {
 
         const handleScroll = () => {
             const currentScrollPos = window.scrollY;
-            
+
             // Allow small buffer before triggering change
             if (Math.abs(currentScrollPos - lastScrollY) < 10) {
                 return;
