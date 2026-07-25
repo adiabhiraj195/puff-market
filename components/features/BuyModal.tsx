@@ -261,7 +261,7 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
             owner: userAddress as `0x${string}`,
             spender: MARKETPLACE_ADDRESS as `0x${string}`,
             value: listing.price,
-            nonce: nonce !== undefined && nonce !== null ? BigInt(nonce) : 0n,
+            nonce: nonce !== undefined && nonce !== null ? BigInt(nonce as any) : 0n,
             deadline: deadline,
           },
         });
