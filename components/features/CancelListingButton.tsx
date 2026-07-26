@@ -4,25 +4,30 @@ import { useWallet } from '@/contexts/WalletProvider'
 import { cancelListing } from '@/api/nft';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
-
-import { Outfit, Staatliches } from "@/lib/fonts";
-
-const statliche = Staatliches({
-    weight: ["400"],
-    subsets: ['latin']
-})
+import { FiXCircle } from 'react-icons/fi';
+import { CgSpinner } from 'react-icons/cg';
+import { Outfit } from "@/lib/fonts";
 
 const outfit = Outfit({
-    weight: ["400"],
+    weight: ["400", "600", "700"],
     subsets: ['latin']
 })
 
-export default function Cancel_Listing_Button({ nftId, nftAddress, tokenId, onSuccess }: {
+interface CancelListingButtonProps {
     nftId: string;
     nftAddress: string;
     tokenId: string;
     onSuccess?: () => void;
-}) {
+    className?: string;
+}
+
+export default function Cancel_Listing_Button({ 
+    nftId, 
+    nftAddress, 
+    tokenId, 
+    onSuccess,
+    className = ""
+}: CancelListingButtonProps) {
     const { isConnected } = useWallet();
     const { writeContractAsync } = useWriteContract();
     const publicClient = usePublicClient();
@@ -57,13 +62,25 @@ export default function Cancel_Listing_Button({ nftId, nftAddress, tokenId, onSu
             setLoading(false);
         }
     }
+
     return (
         <button
             onClick={handleCancel}
-            disabled={loading}
-            className={`${statliche.className} hover:bg-gradient-to-l hover:from-fuchsia-200 hover:to-sky-300 btn rounded-l text-2xl text-center w-48 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading || !isConnected}
+            className={`${outfit.className} flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3.5 px-6 rounded-xl w-full shadow-lg hover:shadow-red-500/25 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-red-600 disabled:hover:to-rose-600 disabled:active:scale-100 ${className}`}
         >
-            {loading ? "Cancelling..." : "Cancel Listing"}
+            {loading ? (
+                <>
+                    <CgSpinner className="animate-spin text-xl" />
+                    <span>Cancelling...</span>
+                </>
+            ) : (
+                <>
+                    <span>Cancel Listing</span>
+                    <FiXCircle size={18} />
+                </>
+            )}
         </button>
     )
 }
+

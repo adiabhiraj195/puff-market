@@ -69,6 +69,9 @@ export default function Navbar() {
                 <Link href="/auction" id="tour-auctions" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
                     Auctions
                 </Link>
+                <Link href="/architecture" id="tour-architecture" className='mx-2.5 text-sm font-medium text-zinc-300 hover:text-white transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-white/5'>
+                    Architecture
+                </Link>
             </div>
 
             <SearchBar />
