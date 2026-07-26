@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
 import { useWallet } from "@/contexts/WalletProvider";
+import { useNotification } from "@/contexts/NotificationContext";
 import axiosClient from "@/api/axiosClient";
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from "@/constants/PuffNft";
 import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI, MARKETPLACE_NFT_ABI } from "@/constants/NFTFactory";
@@ -23,6 +24,7 @@ interface Trait {
 
 export default function MintPage() {
     const { isConnected, connectWallet, account } = useWallet();
+    const { notify } = useNotification();
 
     // Form inputs
     const [name, setName] = useState("");
@@ -138,11 +140,18 @@ export default function MintPage() {
     // Step 1: Upload media & metadata to IPFS via Backend Server
     const handleUploadToIPFS = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedFile) return alert("Please drop or browse a media file.");
-        if (!name || !description) return alert("Name and description are required.");
+        if (!selectedFile) {
+            notify.warning("File Required", "Please drop or browse a media file to upload.");
+            return;
+        }
+        if (!name || !description) {
+            notify.warning("Details Required", "NFT Name and Description are required.");
+            return;
+        }
 
         setUploadState("uploading");
         setErrorMessage("");
+        const toastId = notify.loading("Uploading Media to IPFS...", "Pinning asset and metadata to IPFS storage.");
 
         try {
             const formData = new FormData();
@@ -166,6 +175,11 @@ export default function MintPage() {
                 setTokenURI(res.data.tokenURI);
                 setIpfsMetadata(res.data.metadata);
                 setUploadState("uploaded");
+                notify.update(toastId, {
+                    type: "success",
+                    title: "IPFS Upload Complete! 🚀",
+                    message: "Asset pinned successfully. Ready to mint on blockchain!",
+                });
                 setCurrentStep(2); // Proceed to Mint Blockchain Step
             } else {
                 throw new Error(res.data.error || "Failed to upload");
@@ -173,16 +187,29 @@ export default function MintPage() {
         } catch (err: any) {
             console.error(err);
             setUploadState("error");
-            setErrorMessage(err.response?.data?.error || err.message || "IPFS upload failed.");
+            const errText = err.response?.data?.error || err.message || "IPFS upload failed.";
+            setErrorMessage(errText);
+            notify.update(toastId, {
+                type: "error",
+                title: "IPFS Upload Failed",
+                message: errText,
+            });
         }
     };
 
     // Step 2: Trigger blockchain contract write
     const handleMintNFT = () => {
-        if (!account) return alert("Please reconnect your wallet.");
-        if (!tokenURI) return alert("IPFS upload is not complete.");
+        if (!account) {
+            notify.warning("Wallet Required", "Please connect your Web3 wallet to mint.");
+            return;
+        }
+        if (!tokenURI) {
+            notify.warning("IPFS Upload Required", "Please complete IPFS upload step first.");
+            return;
+        }
         setErrorMessage("");
         setMintState("signing");
+        notify.loading("Minting NFT on Blockchain...", "Please confirm the transaction in your wallet.");
 
         const isDefault = selectedCollection.toLowerCase() === PUFF_NFT_ADDRESS.toLowerCase();
 
@@ -210,6 +237,7 @@ export default function MintPage() {
                 msg = "Transaction was rejected in your wallet.";
             }
             setErrorMessage(msg);
+            notify.error("Minting Failed", msg);
         }
     }, [isWritePending, hash, isConfirming, writeError]);
 
@@ -217,6 +245,7 @@ export default function MintPage() {
     useEffect(() => {
         if (isConfirmed && receipt) {
             setMintState("confirmed");
+            notify.success("NFT Minted Successfully! 🎉", "Your NFT was created on-chain and registered.");
             const confirmOnBackend = async () => {
                 try {
                     let tokenIdStr = "";
@@ -284,10 +313,17 @@ export default function MintPage() {
     // Action to deploy custom proxy collections via factory
     const handleDeployCollection = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newCollName || !newCollSymbol) return alert("Please enter name and symbol");
-        if (!account) return alert("Wallet not connected");
+        if (!newCollName || !newCollSymbol) {
+            notify.warning("Details Required", "Please enter collection name and symbol.");
+            return;
+        }
+        if (!account) {
+            notify.warning("Wallet Required", "Please connect your wallet first.");
+            return;
+        }
 
         setIsDeployingCollection(true);
+        const toastId = notify.loading("Deploying Collection...", "Deploying custom ERC-721 proxy contract.");
         try {
             console.log("[Deploy Collection] Deploying custom collection contract...");
             const txHash = await writeContractAsync({
@@ -295,6 +331,12 @@ export default function MintPage() {
                 abi: NFT_FACTORY_ABI as any,
                 functionName: "createCollection",
                 args: [newCollName, newCollSymbol],
+            });
+
+            notify.update(toastId, {
+                type: "loading",
+                title: "Confirming Deployment...",
+                message: "Waiting for collection deployment transaction receipt...",
             });
 
             if (publicClient) {
@@ -326,20 +368,28 @@ export default function MintPage() {
                 });
 
                 if (regRes.success) {
-                    alert(`Collection "${newCollName}" deployed successfully!`);
+                    notify.update(toastId, {
+                        type: "success",
+                        title: "Collection Deployed! 🎉",
+                        message: `Collection "${newCollName}" (${newCollSymbol}) deployed successfully!`,
+                    });
+                    setSelectedCollection(cloneAddress);
+                    setIsDeployModalOpen(false);
                     setNewCollName("");
                     setNewCollSymbol("");
-                    setIsDeployModalOpen(false);
-                    // Refresh collection options
-                    await fetchCollections();
-                    setSelectedCollection(cloneAddress as `0x${string}`);
+                    fetchCollections();
                 } else {
-                    throw new Error("Failed to register collection on backend.");
+                    throw new Error(regRes.error || "Failed to register collection in database");
                 }
             }
         } catch (err: any) {
-            console.error("Deploy collection error:", err);
-            alert(err.shortMessage || err.message || "Failed to deploy collection.");
+            console.error("[Deploy Collection] Failed:", err);
+            const errStr = err.shortMessage || err.message || "Failed to deploy collection.";
+            notify.update(toastId, {
+                type: "error",
+                title: "Deployment Failed",
+                message: errStr,
+            });
         } finally {
             setIsDeployingCollection(false);
         }

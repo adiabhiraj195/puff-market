@@ -1,6 +1,7 @@
 "use client"
 import React, { useState } from 'react'
 import { useWallet } from '@/contexts/WalletProvider'
+import { useNotification } from '@/contexts/NotificationContext'
 import { cancelListing } from '@/api/nft';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
@@ -29,17 +30,22 @@ export default function Cancel_Listing_Button({
     className = ""
 }: CancelListingButtonProps) {
     const { isConnected } = useWallet();
+    const { notify } = useNotification();
     const { writeContractAsync } = useWriteContract();
     const publicClient = usePublicClient();
     const [loading, setLoading] = useState(false);
 
     async function handleCancel() {
         if (!isConnected) {
-            return
+            notify.warning("Wallet Not Connected", "Please connect your Web3 wallet to cancel listing.");
+            return;
         }
 
+        let toastId = "";
         try {
             setLoading(true);
+            toastId = notify.loading("Cancelling Listing...", "Please confirm the transaction in your wallet.");
+
             const txHash = await writeContractAsync({
                 address: MARKETPLACE_ADDRESS as `0x${string}`,
                 abi: MARKETPLACE_ABI as any,
@@ -47,17 +53,38 @@ export default function Cancel_Listing_Button({
                 args: [nftAddress as `0x${string}`, BigInt(tokenId)],
             });
 
+            notify.update(toastId, {
+                type: "loading",
+                title: "Processing Cancellation...",
+                message: "Transaction submitted. Waiting for blockchain confirmation...",
+            });
+
             if (publicClient) {
                 await publicClient.waitForTransactionReceipt({ hash: txHash });
             }
 
             await cancelListing(nftId);
-            console.log("canceled")
+            notify.update(toastId, {
+                type: "success",
+                title: "Listing Cancelled!",
+                message: "NFT listing has been successfully removed from marketplace.",
+            });
+
             if (onSuccess) {
                 onSuccess();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to cancel listing:", error);
+            const errReason = error?.shortMessage || error?.message || "Failed to cancel listing";
+            if (toastId) {
+                notify.update(toastId, {
+                    type: "error",
+                    title: "Cancellation Failed",
+                    message: errReason,
+                });
+            } else {
+                notify.error("Cancellation Failed", errReason);
+            }
         } finally {
             setLoading(false);
         }

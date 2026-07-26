@@ -102,8 +102,8 @@ export async function createListing(tokenId: string, price: string, txHash: stri
 /**
  * Register a newly deployed custom collection clone in the backend database.
  */
-export async function registerCollection(payload: { contractAddress: string; name: string; symbol: string }): Promise<{ success: boolean; collection: any }> {
-  const response = await axiosClient.post<{ success: boolean; collection: any }>('/api/collections', payload);
+export async function registerCollection(payload: { contractAddress: string; name: string; symbol: string }): Promise<{ success: boolean; collection?: any; error?: string }> {
+  const response = await axiosClient.post<{ success: boolean; collection?: any; error?: string }>('/api/collections', payload);
   return response.data;
 }
 
