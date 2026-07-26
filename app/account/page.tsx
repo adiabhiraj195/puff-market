@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletProvider";
+import { useNotification } from "@/contexts/NotificationContext";
 import { useWriteContract, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
 import { getUserNfts, getUserCollections, registerCollection } from "@/api/nft";
@@ -18,6 +19,7 @@ import { IoWalletOutline } from "react-icons/io5";
 
 export default function AccountPage() {
     const { isConnected, account, connectWallet } = useWallet();
+    const { notify } = useNotification();
 
     // Data states
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -156,6 +158,7 @@ export default function AccountPage() {
         setEditError(null);
         setIsSaving(true);
         setSaveSuccess(false);
+        const toastId = notify.loading("Updating Profile...", "Saving profile details...");
 
         try {
             const payload = {
@@ -168,6 +171,11 @@ export default function AccountPage() {
             if (res.success) {
                 setProfile(res.user);
                 setSaveSuccess(true);
+                notify.update(toastId, {
+                    type: "success",
+                    title: "Profile Updated!",
+                    message: "Your profile information has been saved successfully.",
+                });
                 setTimeout(() => {
                     setIsEditModalOpen(false);
                     setSaveSuccess(false);
@@ -175,7 +183,13 @@ export default function AccountPage() {
             }
         } catch (err: any) {
             console.error("Error updating profile:", err);
-            setEditError(err.response?.data?.error || err.message || "Failed to update profile.");
+            const errStr = err.response?.data?.error || err.message || "Failed to update profile.";
+            setEditError(errStr);
+            notify.update(toastId, {
+                type: "error",
+                title: "Update Failed",
+                message: errStr,
+            });
         } finally {
             setIsSaving(false);
         }

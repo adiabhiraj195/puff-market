@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
 import { useWallet } from '@/contexts/WalletProvider';
+import { useNotification } from '@/contexts/NotificationContext';
 import { IoClose } from 'react-icons/io5';
 import { Staatliches, Outfit } from '@/lib/fonts';
 
@@ -112,14 +113,35 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
 
   // Determine transaction lifecycle state
   const [txState, setTxState] = useState<'idle' | 'signing' | 'pending' | 'confirmed' | 'error'>('idle');
+  const { notify } = useNotification();
+  const [faucetToastId, setFaucetToastId] = useState<string>('');
 
   useEffect(() => {
     if (isWritePending) {
       setTxState('signing');
+      const tid = notify.loading("Claiming Faucet Tokens...", "Please confirm the transaction in your wallet.");
+      setFaucetToastId(tid);
     } else if (hash && isConfirming) {
       setTxState('pending');
+      if (faucetToastId) {
+        notify.update(faucetToastId, {
+          type: "loading",
+          title: "Processing Claim...",
+          message: "Transaction submitted. Awaiting block confirmation...",
+        });
+      }
     } else if (isConfirmed) {
       setTxState('confirmed');
+      if (faucetToastId) {
+        notify.update(faucetToastId, {
+          type: "success",
+          title: "Faucet Claimed Successfully!",
+          message: `Received ${wasFirstClaim ? '6,000' : '1,000'} PUFF tokens to your wallet!`,
+        });
+        setFaucetToastId('');
+      } else {
+        notify.success("Faucet Claimed Successfully!", `Received ${wasFirstClaim ? '6,000' : '1,000'} PUFF tokens!`);
+      }
     } else if (writeError) {
       setTxState('error');
       // Format a user-friendly error message
@@ -130,6 +152,16 @@ export default function FaucetModal({ isOpen, onClose }: FaucetModalProps) {
         msg = 'Faucet cooldown is currently active.';
       }
       setErrorMessage(msg);
+      if (faucetToastId) {
+        notify.update(faucetToastId, {
+          type: "error",
+          title: "Claim Failed",
+          message: msg,
+        });
+        setFaucetToastId('');
+      } else {
+        notify.error("Claim Failed", msg);
+      }
     } else {
       setTxState('idle');
     }

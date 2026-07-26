@@ -1,6 +1,6 @@
-"use client"
 import React, { useState } from 'react'
 import { useWallet } from '@/contexts/WalletProvider'
+import { useNotification } from '@/contexts/NotificationContext'
 import { useReadContract, useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { formatEther } from 'viem';
@@ -18,6 +18,7 @@ const outfit = Outfit({
 
 export default function WithdrawEth() {
     const { account, isConnected } = useWallet();
+    const { notify } = useNotification();
     const [loading, setLoading] = useState(false);
 
     const { data: rawBalance, refetch: refetchProceeds } = useReadContract({
@@ -37,15 +38,29 @@ export default function WithdrawEth() {
 
     async function handleWithdraw() {
         if (!isConnected) {
+            notify.warning("Wallet Not Connected", "Please connect your wallet to withdraw funds.");
             return;
         }
-        setLoading(true)
+        if (balanceStr === "0") {
+            notify.info("No Revenue", "You have 0 ETH available to withdraw.");
+            return;
+        }
 
+        let toastId = "";
         try {
+            setLoading(true);
+            toastId = notify.loading("Withdrawing Proceeds...", "Please confirm the transaction in your wallet.");
+
             const txHash = await writeContractAsync({
                 address: MARKETPLACE_ADDRESS as `0x${string}`,
                 abi: MARKETPLACE_ABI as any,
                 functionName: 'withdrawProceeds',
+            });
+
+            notify.update(toastId, {
+                type: "loading",
+                title: "Processing Withdrawal...",
+                message: "Transaction submitted on-chain. Waiting for block receipt...",
             });
 
             if (publicClient) {
@@ -53,11 +68,26 @@ export default function WithdrawEth() {
             }
 
             refetchProceeds();
+            notify.update(toastId, {
+                type: "success",
+                title: "Funds Withdrawn! 🎉",
+                message: `Successfully transferred ${balanceStr} ETH to your wallet!`,
+            });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to withdraw proceeds:", error);
+            const errMsg = error?.shortMessage || error?.message || "Withdrawal failed.";
+            if (toastId) {
+                notify.update(toastId, {
+                    type: "error",
+                    title: "Withdrawal Failed",
+                    message: errMsg,
+                });
+            } else {
+                notify.error("Withdrawal Failed", errMsg);
+            }
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
 

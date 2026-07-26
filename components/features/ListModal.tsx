@@ -7,6 +7,7 @@ import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from '@/constants/PuffNft';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { createListing } from '@/api/nft';
 import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface ListModalProps {
   nftId: string;
@@ -35,6 +36,7 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
 
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const { notify } = useNotification();
 
   if (!isOpen) return null;
 
@@ -93,25 +95,28 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
     }
   };
 
-  const handleList = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+  const handleList = async () => {
+    if (!price || parseFloat(price) <= 0) {
       setErrorMsg('Please enter a valid price greater than 0');
+      notify.warning("Invalid Price", "Please enter a valid price greater than 0.");
       return;
     }
 
     if (tokenType === 'custom') {
       if (!customTokenAddress.startsWith('0x') || customTokenAddress.length !== 42) {
         setErrorMsg('Please enter a valid custom ERC-20 contract address');
+        notify.warning("Invalid Address", "Please enter a valid custom ERC-20 contract address.");
         return;
       }
       if (!resolvedTokenSymbol) {
         setErrorMsg('Please verify your custom ERC-20 address first');
+        notify.warning("Unverified Address", "Please verify your custom ERC-20 address first.");
         return;
       }
     }
 
     setErrorMsg('');
+    let toastId = "";
     try {
       // Convert to base units using decimals
       const decimalsToUse = tokenType === 'custom' ? resolvedTokenDecimals : 18;
@@ -123,6 +128,7 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       // --- STEP 1: APPROVAL ---
       setStep(1);
       setStep1State('signing');
+      toastId = notify.loading("Approving Marketplace...", "Please approve marketplace transfer in your wallet.");
 
       const targetNftAddress = (nftAddress || PUFF_NFT_ADDRESS) as `0x${string}`;
 
@@ -135,6 +141,11 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       });
 
       setStep1State('pending');
+      notify.update(toastId, {
+        type: "loading",
+        title: "Confirming NFT Approval...",
+        message: "Waiting for blockchain approval confirmation...",
+      });
       console.log("[ListModal] Step 1 Approval tx hash:", approveHash);
 
       if (publicClient) {
@@ -146,6 +157,11 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       // --- STEP 2: LISTING ---
       setStep(2);
       setStep2State('signing');
+      notify.update(toastId, {
+        type: "loading",
+        title: "Submitting NFT Listing...",
+        message: "Please sign the listing transaction in your wallet.",
+      });
 
       console.log("[ListModal] Step 2: Listing item with token:", tokenAddress);
       const listHash = await writeContractAsync({
@@ -156,6 +172,11 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       });
 
       setStep2State('pending');
+      notify.update(toastId, {
+        type: "loading",
+        title: "Processing Listing Transaction...",
+        message: "Waiting for block confirmation...",
+      });
       console.log("[ListModal] Step 2 Listing tx hash:", listHash);
 
       if (publicClient) {
@@ -169,6 +190,11 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       const dbTokenId = `${targetNftAddress.toLowerCase()}-${tokenId}`;
       await createListing(dbTokenId, price, listHash, tokenAddress);
 
+      notify.update(toastId, {
+        type: "success",
+        title: "NFT Listed Successfully! 🎉",
+        message: `Token #${tokenId} is now listed for ${price} ${tokenType.toUpperCase()}!`,
+      });
 
       // Success
       setTimeout(() => {
@@ -178,7 +204,17 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
 
     } catch (err: any) {
       console.error("[ListModal] Transaction failed:", err);
-      setErrorMsg(err.shortMessage || err.message || 'Transaction failed. Please try again.');
+      const errReason = err.shortMessage || err.message || 'Transaction failed. Please try again.';
+      setErrorMsg(errReason);
+      if (toastId) {
+        notify.update(toastId, {
+          type: "error",
+          title: "Listing Failed",
+          message: errReason,
+        });
+      } else {
+        notify.error("Listing Failed", errReason);
+      }
       if (step === 1) setStep1State('error');
       if (step === 2) setStep2State('error');
     }

@@ -7,6 +7,7 @@ import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadC
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
 import { getSiweNonce, verifySiwe } from "@/api/auth";
+import { useNotification } from "@/contexts/NotificationContext";
 
 interface WalletContextType {
     connectWallet: () => Promise<void>;
@@ -137,12 +138,17 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, []);
 
+    const { notify } = useNotification();
+
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
         if (isSigning) return;
         setIsSigning(true);
+        let toastId = "";
         try {
             setError(null);
+            toastId = notify.loading("Authenticating Wallet...", "Please sign the SIWE request in your wallet.");
+
             // 1. GET message string with nonce
             const { message } = await getSiweNonce(walletAddress);
 
@@ -158,12 +164,27 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setToken(verifyData.token);
                 setUser(verifyData.user);
                 setIsAuthenticated(true);
+                notify.update(toastId, {
+                    type: "success",
+                    title: "Wallet Authenticated!",
+                    message: "Successfully logged into Puffmarket.",
+                });
             } else {
                 throw new Error(verifyData.error || 'Authentication failed');
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Failed to authenticate wallet");
+            const errMsg = err.message || "Failed to authenticate wallet";
+            setError(errMsg);
+            if (toastId) {
+                notify.update(toastId, {
+                    type: "error",
+                    title: "Authentication Failed",
+                    message: errMsg,
+                });
+            } else {
+                notify.error("Authentication Failed", errMsg);
+            }
             // Clear on failure
             localStorage.removeItem('token');
             document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
@@ -227,6 +248,10 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setNotification({
                 message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
             });
+            notify.success(
+                "NFT Sold! 🎉",
+                `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
+            );
 
             // Auto refetch balance
             refetchBalance();

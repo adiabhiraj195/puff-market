@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { parseUnits, parseSignature, zeroAddress } from 'viem';
 import { useWallet } from '@/contexts/WalletProvider';
+import { useNotification } from '@/contexts/NotificationContext';
 import {
   PUFF_TOKEN_ADDRESS,
   PUFF_TOKEN_ABI,
@@ -54,6 +55,7 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
   const [step2State, setStep2State] = useState<TxState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
+  const { notify } = useNotification();
 
   const tokenAddress = paymentToken || "0x0000000000000000000000000000000000000000";
   const isEth = tokenAddress === "0x0000000000000000000000000000000000000000";
@@ -223,6 +225,7 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
         // Success
         refetchBalance();
         refetchEthBalance();
+        notify.success("NFT Purchased Successfully!", `You have successfully bought Token #${tokenId} for ${price} ETH!`);
         setTimeout(() => {
           onSuccess();
           onClose();
@@ -381,6 +384,7 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
       // Success
       refetchBalance();
       refetchTokenBalance();
+      notify.success("NFT Purchased Successfully!", `You have successfully bought Token #${tokenId} for ${price} ${symbol}!`);
       setTimeout(() => {
         onSuccess();
         onClose();
@@ -388,20 +392,24 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
 
     } catch (err: any) {
       console.error("[BuyModal] Purchase failed:", err);
+      const userErr = err?.shortMessage ?? err?.message ?? "Transaction failed";
       // Distinguish signature rejection from transaction revert
       if (err?.code === 4001 || err?.name === "UserRejectedRequestError") {
         setErrorMsg("Signature rejected");
+        notify.error("Transaction Rejected", "Signature was rejected in your wallet.");
         if (step === 1) setStep1State('error');
         if (step === 2) setStep2State('error');
         return;
       }
       if (err?.message?.includes("Permit expired")) {
         setErrorMsg("Your permit expired, please try again");
+        notify.error("Permit Expired", "Your permit signature expired. Please try again.");
         if (step === 1) setStep1State('error');
         if (step === 2) setStep2State('error');
         return;
       }
-      setErrorMsg(err?.shortMessage ?? err?.message ?? "Transaction failed");
+      setErrorMsg(userErr);
+      notify.error("Purchase Failed", userErr);
       if (step === 1) setStep1State('error');
       if (step === 2) setStep2State('error');
     }
