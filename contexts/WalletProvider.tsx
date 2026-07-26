@@ -64,11 +64,11 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     });
 
-    const puffBalance = balance 
-        ? parseFloat(ethers.formatUnits(balance as any, 18)).toLocaleString(undefined, { 
-            minimumFractionDigits: 0, 
-            maximumFractionDigits: 2 
-          }) 
+    const puffBalance = balance
+        ? parseFloat(ethers.formatUnits(balance as any, 18)).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        })
         : "0";
 
     // Setup ethers provider & signer from connector client
@@ -190,7 +190,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 try {
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     tokenAddress = payload.address?.toLowerCase();
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (tokenAddress !== walletAddress && hasPromptedRef.current !== walletAddress) {
@@ -212,7 +212,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         console.log("[Socket] Initializing socket connection to server...");
-        const socket = io("http://localhost:5001");
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001");
 
         socket.on("connect", () => {
             const walletRoom = address.toLowerCase();
@@ -227,7 +227,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setNotification({
                 message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
             });
-            
+
             // Auto refetch balance
             refetchBalance();
         });
@@ -292,8 +292,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                             <span className="flex h-2.5 w-2.5 rounded-full bg-green-500 animate-ping" />
                             <span className="font-bold text-green-400 tracking-wide text-sm uppercase">NFT Sold! 🎉</span>
                         </div>
-                        <button 
-                            onClick={() => setNotification(null)} 
+                        <button
+                            onClick={() => setNotification(null)}
                             className="text-gray-500 hover:text-white transition-colors"
                         >
                             ✕
