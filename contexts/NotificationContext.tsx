@@ -4,6 +4,12 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 
 export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 
+export interface ToastAction {
+  label: string;
+  url?: string;
+  onClick?: () => void;
+}
+
 export interface Toast {
   id: string;
   type: ToastType;
@@ -11,22 +17,24 @@ export interface Toast {
   message?: string;
   duration?: number; // ms
   timestamp: number;
+  action?: ToastAction;
 }
 
 interface ToastOptions {
   message?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface NotificationContextType {
   toasts: Toast[];
   notify: {
-    success: (title: string, message?: string, duration?: number) => string;
-    error: (title: string, message?: string, duration?: number) => string;
-    warning: (title: string, message?: string, duration?: number) => string;
-    info: (title: string, message?: string, duration?: number) => string;
+    success: (title: string, message?: string, duration?: number, action?: ToastAction) => string;
+    error: (title: string, message?: string, duration?: number, action?: ToastAction) => string;
+    warning: (title: string, message?: string, duration?: number, action?: ToastAction) => string;
+    info: (title: string, message?: string, duration?: number, action?: ToastAction) => string;
     loading: (title: string, message?: string) => string;
-    update: (id: string, update: { type: ToastType; title: string; message?: string; duration?: number }) => void;
+    update: (id: string, update: { type: ToastType; title: string; message?: string; duration?: number; action?: ToastAction }) => void;
     dismiss: (id: string) => void;
   };
   copyToClipboard: (text: string, label?: string) => Promise<boolean>;
@@ -49,7 +57,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((type: ToastType, title: string, message?: string, duration = 4000): string => {
+  const addToast = useCallback((type: ToastType, title: string, message?: string, duration = 4000, action?: ToastAction): string => {
     const id = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
     const newToast: Toast = {
       id,
@@ -58,6 +66,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       message,
       duration: type === "loading" ? 0 : duration,
       timestamp: Date.now(),
+      action,
     };
 
     setToasts((prev) => [newToast, ...prev.slice(0, 7)]); // keep max 8 active toasts
@@ -71,7 +80,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     return id;
   }, [removeToast]);
 
-  const updateToast = useCallback((id: string, update: { type: ToastType; title: string; message?: string; duration?: number }) => {
+  const updateToast = useCallback((id: string, update: { type: ToastType; title: string; message?: string; duration?: number; action?: ToastAction }) => {
     setToasts((prev) =>
       prev.map((toast) => {
         if (toast.id === id) {
@@ -90,6 +99,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             title: update.title,
             message: update.message !== undefined ? update.message : toast.message,
             duration: updatedDuration,
+            action: update.action !== undefined ? update.action : toast.action,
           };
         }
         return toast;
@@ -109,10 +119,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [addToast]);
 
   const notify = {
-    success: (title: string, message?: string, duration?: number) => addToast("success", title, message, duration),
-    error: (title: string, message?: string, duration?: number) => addToast("error", title, message, duration ?? 5500),
-    warning: (title: string, message?: string, duration?: number) => addToast("warning", title, message, duration),
-    info: (title: string, message?: string, duration?: number) => addToast("info", title, message, duration),
+    success: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("success", title, message, duration, action),
+    error: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("error", title, message, duration ?? 5500, action),
+    warning: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("warning", title, message, duration, action),
+    info: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("info", title, message, duration, action),
     loading: (title: string, message?: string) => addToast("loading", title, message, 0),
     update: updateToast,
     dismiss: removeToast,
