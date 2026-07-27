@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useNotification, Toast, ToastType } from "@/contexts/NotificationContext";
-import { FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiInfo, FiX } from "react-icons/fi";
+import { FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiInfo, FiX, FiExternalLink } from "react-icons/fi";
 import { CgSpinner } from "react-icons/cg";
 import { Outfit } from "@/lib/fonts";
 
@@ -91,6 +91,33 @@ export default function ToastContainer() {
                   <p className="text-xs text-gray-300 mt-1 leading-relaxed break-words">
                     {toast.message}
                   </p>
+                )}
+                {toast.action && (
+                  <div className="mt-2.5">
+                    {toast.action.url ? (
+                      <a
+                        href={toast.action.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          if (toast.action?.onClick) toast.action.onClick();
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer"
+                      >
+                        <span>{toast.action.label}</span>
+                        <FiExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (toast.action?.onClick) toast.action.onClick();
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                      >
+                        {toast.action.label}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 

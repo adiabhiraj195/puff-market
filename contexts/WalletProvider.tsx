@@ -3,7 +3,8 @@
 import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
 import { ethers } from "ethers";
 import { io } from "socket.io-client";
-import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract } from "wagmi";
+import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract, useBalance } from "wagmi";
+import { sepolia } from "wagmi/chains";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
 import { getSiweNonce, verifySiwe } from "@/api/auth";
@@ -53,6 +54,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
     const hasPromptedRef = useRef<string | null>(null);
+    const checkedSepoliaRef = useRef<string | null>(null);
+
+    const { notify } = useNotification();
 
     // Get PUFF Token balance
     const { data: balance, refetch: refetchBalance } = useReadContract({
@@ -71,6 +75,43 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             maximumFractionDigits: 2
         })
         : "0";
+
+    // Fetch Sepolia ETH balance
+    const { data: sepoliaBalance, isFetched: isSepoliaBalanceFetched } = useBalance({
+        address: address as `0x${string}`,
+        chainId: sepolia.id,
+        query: {
+            enabled: !!address && isWalletConnected,
+        }
+    });
+
+    // Check Sepolia ETH balance when wallet connects
+    useEffect(() => {
+        if (!isWalletConnected || !address) {
+            checkedSepoliaRef.current = null;
+            return;
+        }
+
+        const walletAddr = address.toLowerCase();
+
+        if (isSepoliaBalanceFetched && sepoliaBalance) {
+            if (checkedSepoliaRef.current !== walletAddr) {
+                checkedSepoliaRef.current = walletAddr;
+
+                if (sepoliaBalance.value === 0n) {
+                    notify.warning(
+                        "No Sepolia ETH Detected",
+                        "Your wallet has 0 Sepolia ETH. You will need Sepolia ETH for gas fees on the Sepolia network.",
+                        12000,
+                        {
+                            label: "Get Sepolia ETH (Google Faucet)",
+                            url: "https://cloud.google.com/application/web3/faucet/ethereum/sepolia",
+                        }
+                    );
+                }
+            }
+        }
+    }, [address, isWalletConnected, isSepoliaBalanceFetched, sepoliaBalance, notify]);
 
     // Setup ethers provider & signer from connector client
     useEffect(() => {
@@ -137,8 +178,6 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             }
         }
     }, []);
-
-    const { notify } = useNotification();
 
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
