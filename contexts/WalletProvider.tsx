@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useRef, ReactNode } from "react";
 import { ethers } from "ethers";
 import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract, useBalance } from "wagmi";
@@ -9,6 +9,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
 import { getSiweNonce, verifySiwe } from "@/api/auth";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useWalletStore } from "@/store/useWalletStore";
 
 interface WalletContextType {
     connectWallet: () => Promise<void>;
@@ -27,11 +28,26 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const useWallet = () => {
+    const store = useWalletStore();
     const context = useContext(WalletContext);
-    if (!context) {
-        throw new Error("useWallet must be used within a WalletProvider");
+    
+    if (context) {
+        return context;
     }
-    return context;
+
+    return {
+        connectWallet: async () => {},
+        disconnectWallet: store.resetWalletState,
+        account: store.account,
+        provider: store.provider,
+        signer: store.signer,
+        isConnected: store.isConnected && store.isAuthenticated,
+        isAuthenticated: store.isAuthenticated,
+        puffBalance: store.puffBalance,
+        error: store.error,
+        user: store.user,
+        refetchBalance: () => {},
+    };
 };
 
 export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -41,16 +57,29 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const { openConnectModal } = useConnectModal();
     const { data: client } = useConnectorClient();
 
-    const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-    const [signer, setSigner] = useState<ethers.Signer | null>(null);
-    const [account, setAccount] = useState<string | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [token, setToken] = useState<string | null>(null);
-    const [user, setUser] = useState<any | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [notification, setNotification] = useState<{ message: string } | null>(null);
-    const [isSigning, setIsSigning] = useState(false);
+    const {
+        account,
+        provider,
+        signer,
+        isAuthenticated,
+        token,
+        user,
+        error,
+        notification,
+        isSigning,
+        setAccount,
+        setProvider,
+        setSigner,
+        setIsConnected,
+        setIsAuthenticated,
+        setToken,
+        setUser,
+        setPuffBalance,
+        setError,
+        setNotification,
+        setIsSigning,
+        resetWalletState,
+    } = useWalletStore();
 
     const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
     const hasPromptedRef = useRef<string | null>(null);
@@ -69,12 +98,16 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     });
 
-    const puffBalance = balance
+    const puffBalanceFormatted = balance
         ? parseFloat(ethers.formatUnits(balance as any, 18)).toLocaleString(undefined, {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2
         })
         : "0";
+
+    useEffect(() => {
+        setPuffBalance(puffBalanceFormatted);
+    }, [puffBalanceFormatted, setPuffBalance]);
 
     // Fetch Sepolia ETH balance
     const { data: sepoliaBalance, isFetched: isSepoliaBalanceFetched } = useBalance({
@@ -145,7 +178,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } catch (err) {
             console.error("Failed to construct ethers provider/signer:", err);
         }
-    }, [client]);
+    }, [client, setProvider, setSigner]);
 
     // Keep state in sync with wagmi account state
     useEffect(() => {
@@ -156,7 +189,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setAccount(null);
             setIsConnected(false);
         }
-    }, [address, isWalletConnected]);
+    }, [address, isWalletConnected, setAccount, setIsConnected]);
 
     // Initial mount: load JWT from localStorage
     useEffect(() => {
@@ -177,7 +210,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
             }
         }
-    }, []);
+    }, [setToken, setUser, setIsAuthenticated]);
 
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
@@ -304,7 +337,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             console.log("[Socket] Cleaning up socket connection...");
             socket.disconnect();
         };
-    }, [address, isWalletConnected]);
+    }, [address, isWalletConnected, setNotification, notify, refetchBalance]);
 
     const connectWallet = async () => {
         try {
@@ -323,13 +356,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         disconnect();
         localStorage.removeItem('token');
         document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        setToken(null);
-        setUser(null);
-        setIsAuthenticated(false);
-        setProvider(null);
-        setSigner(null);
-        setAccount(null);
-        setIsConnected(false);
+        resetWalletState();
     };
 
     return (
@@ -342,7 +369,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 signer,
                 isConnected: isWalletConnected && isAuthenticated,
                 isAuthenticated,
-                puffBalance,
+                puffBalance: puffBalanceFormatted,
                 error,
                 user,
                 refetchBalance

@@ -1,30 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode } from "react";
+import {
+  useNotificationStore,
+  ToastType,
+  ToastAction,
+  Toast,
+} from "@/store/useNotificationStore";
 
-export type ToastType = "success" | "error" | "warning" | "info" | "loading";
-
-export interface ToastAction {
-  label: string;
-  url?: string;
-  onClick?: () => void;
-}
-
-export interface Toast {
-  id: string;
-  type: ToastType;
-  title: string;
-  message?: string;
-  duration?: number; // ms
-  timestamp: number;
-  action?: ToastAction;
-}
-
-interface ToastOptions {
-  message?: string;
-  duration?: number;
-  action?: ToastAction;
-}
+export type { ToastType, ToastAction, Toast };
 
 interface NotificationContextType {
   toasts: Toast[];
@@ -43,90 +27,24 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const useNotification = () => {
+  const store = useNotificationStore();
   const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error("useNotification must be used within a NotificationProvider");
+  
+  if (context) {
+    return context;
   }
-  return context;
+  
+  return {
+    toasts: store.toasts,
+    notify: store.notify,
+    copyToClipboard: store.copyToClipboard,
+  };
 };
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const addToast = useCallback((type: ToastType, title: string, message?: string, duration = 4000, action?: ToastAction): string => {
-    const id = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    const newToast: Toast = {
-      id,
-      type,
-      title,
-      message,
-      duration: type === "loading" ? 0 : duration,
-      timestamp: Date.now(),
-      action,
-    };
-
-    setToasts((prev) => [newToast, ...prev.slice(0, 7)]); // keep max 8 active toasts
-
-    if (type !== "loading" && duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    }
-
-    return id;
-  }, [removeToast]);
-
-  const updateToast = useCallback((id: string, update: { type: ToastType; title: string; message?: string; duration?: number; action?: ToastAction }) => {
-    setToasts((prev) =>
-      prev.map((toast) => {
-        if (toast.id === id) {
-          const updatedType = update.type;
-          const updatedDuration = update.duration ?? (updatedType === "loading" ? 0 : 4000);
-          
-          if (updatedType !== "loading" && updatedDuration > 0) {
-            setTimeout(() => {
-              removeToast(id);
-            }, updatedDuration);
-          }
-
-          return {
-            ...toast,
-            type: updatedType,
-            title: update.title,
-            message: update.message !== undefined ? update.message : toast.message,
-            duration: updatedDuration,
-            action: update.action !== undefined ? update.action : toast.action,
-          };
-        }
-        return toast;
-      })
-    );
-  }, [removeToast]);
-
-  const copyToClipboard = useCallback(async (text: string, label = "Item") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      addToast("success", "Copied to Clipboard!", `${label} copied successfully.`);
-      return true;
-    } catch (err) {
-      addToast("error", "Copy Failed", `Unable to copy ${label.toLowerCase()}.`);
-      return false;
-    }
-  }, [addToast]);
-
-  const notify = {
-    success: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("success", title, message, duration, action),
-    error: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("error", title, message, duration ?? 5500, action),
-    warning: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("warning", title, message, duration, action),
-    info: (title: string, message?: string, duration?: number, action?: ToastAction) => addToast("info", title, message, duration, action),
-    loading: (title: string, message?: string) => addToast("loading", title, message, 0),
-    update: updateToast,
-    dismiss: removeToast,
-  };
+  const toasts = useNotificationStore((state) => state.toasts);
+  const notify = useNotificationStore((state) => state.notify);
+  const copyToClipboard = useNotificationStore((state) => state.copyToClipboard);
 
   return (
     <NotificationContext.Provider value={{ toasts, notify, copyToClipboard }}>
@@ -134,3 +52,4 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     </NotificationContext.Provider>
   );
 };
+

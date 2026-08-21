@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useNotification, Toast, ToastType } from "@/contexts/NotificationContext";
+import { useNotificationStore, Toast, ToastType } from "@/store";
 import { FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiInfo, FiX, FiExternalLink } from "react-icons/fi";
 import { CgSpinner } from "react-icons/cg";
 import { Outfit } from "@/lib/fonts";
@@ -58,7 +58,9 @@ const getToastStyles = (type: ToastType) => {
 };
 
 export default function ToastContainer() {
-  const { toasts, notify } = useNotification();
+  const toasts = useNotificationStore((state) => state.toasts);
+  const notify = useNotificationStore((state) => state.notify);
+
 
   if (toasts.length === 0) return null;
 
