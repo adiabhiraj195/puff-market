@@ -1,15 +1,13 @@
 "use client"
 
-import { useParams } from "next/navigation"
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 import Loading from "@/components/ui/Loading";
-import { NftInterface, NftMetadataInteface } from "@/types/nft-types";
-import { TransactionInterface } from "@/types/transaction-types";
 import ListingHeader from "@/components/features/ListingHeader";
 import SaleCard from "@/components/features/SaleCard";
 import PriceHistory from "@/components/features/PriceHistory";
 import TransactionHistory from "@/components/features/TransactionHistory";
-import { getNftById, getNftTransactions } from "@/api/nft";
+import { useNftDetails, useNftTransactions } from "@/hooks/useNftQueries";
 import { useWallet } from "@/contexts/WalletProvider";
 import ListModal from "@/components/features/ListModal";
 import BuyModal from "@/components/features/BuyModal";
@@ -17,111 +15,27 @@ import NftMediaAndDetails from "@/components/features/NftMediaAndDetails";
 
 export default function NftPage() {
     const { id } = useParams();
+    const nftIdStr = id as string;
 
     const { account } = useWallet();
-    const [loading, setLoading] = useState<boolean>(false);
-    const [nft, setNft] = useState<NftInterface | null>(null);
-    const [metadata, setMetadata] = useState<NftMetadataInteface | null>(null);
-    const [transactions, setTransactions] = useState<TransactionInterface[]>([]);
+    const { data: nftData, isLoading: isDetailsLoading, refetch: refetchDetails } = useNftDetails(nftIdStr, {
+        enabled: !!nftIdStr,
+    });
+    const { data: txData, isLoading: isTxLoading, refetch: refetchTx } = useNftTransactions(nftIdStr, {
+        enabled: !!nftIdStr,
+    });
+
+    const nft = nftData?.nft || null;
+    const metadata = nftData?.metadata || null;
+    const transactions = txData?.success ? txData.transactions : [];
+    const loading = isDetailsLoading || isTxLoading;
+
     const [isListModalOpen, setIsListModalOpen] = useState(false);
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
 
     const refetchNftData = async () => {
-        try {
-            setLoading(true);
-            const result = await getNftById(id as string);
-            if (result.success) {
-                setNft(result.nft);
-                if (result.nft) {
-                    const dbMetadata: NftMetadataInteface = {
-                        name: result.nft.name || "",
-                        description: result.nft.description || "",
-                        creator: { name: result.nft.creatorAddress || result.nft.owner?.userName || "Anonymous" },
-                        traits: Array.isArray(result.nft.attributes)
-                            ? result.nft.attributes.map((a: any) => ({
-                                  key: a.key || a.trait_type || "",
-                                  value: a.value || ""
-                              }))
-                            : []
-                    };
-                    setMetadata(dbMetadata);
-                }
-            }
-            const txResult = await getNftTransactions(id as string);
-            if (txResult.success) {
-                setTransactions(txResult.transactions);
-            }
-        } catch (error) {
-            console.log(error)
-        } finally {
-            setLoading(false);
-        }
+        await Promise.all([refetchDetails(), refetchTx()]);
     };
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const result = await getNftById(id as string);
-                if (result.success) {
-                    setNft(result.nft);
-
-                    // Initialize metadata with database fields
-                    if (result.nft) {
-                        const dbMetadata: NftMetadataInteface = {
-                            name: result.nft.name || "",
-                            description: result.nft.description || "",
-                            creator: { name: result.nft.creatorAddress || result.nft.owner?.userName || "Anonymous" },
-                            traits: Array.isArray(result.nft.attributes)
-                                ? result.nft.attributes.map((a: any) => ({
-                                      key: a.key || a.trait_type || "",
-                                      value: a.value || ""
-                                  }))
-                                : []
-                        };
-                        setMetadata(dbMetadata);
-                    }
-
-                    // Attempt resolving IPFS URI using Pinata gateway fallback
-                    try {
-                        let ipfsUrl = result.nft.metadataURI;
-                        if (ipfsUrl && ipfsUrl.startsWith("ipfs://")) {
-                            ipfsUrl = `https://sapphire-keen-aardvark-438.mypinata.cloud/ipfs/${ipfsUrl.replace("ipfs://", "")}`;
-                        }
-                        if (ipfsUrl) {
-                            const metadataRes = await fetch(ipfsUrl);
-                            if (metadataRes.ok) {
-                                const ipfsJson = await metadataRes.json();
-                                setMetadata({
-                                    name: ipfsJson.name || result.nft.name || "",
-                                    description: ipfsJson.description || result.nft.description || "",
-                                    creator: { name: ipfsJson.creator?.name || ipfsJson.author || result.nft.creatorAddress || "Anonymous" },
-                                    traits: Array.isArray(ipfsJson.traits || ipfsJson.attributes)
-                                        ? (ipfsJson.traits || ipfsJson.attributes).map((a: any) => ({
-                                              key: a.key || a.trait_type || "",
-                                              value: a.value || ""
-                                          }))
-                                        : []
-                                });
-                            }
-                        }
-                    } catch (err) {
-                        console.log("Error loading metadata json:", err);
-                    }
-                }
-
-                const txResult = await getNftTransactions(id as string);
-                if (txResult.success) {
-                    setTransactions(txResult.transactions);
-                }
-            } catch (error) {
-                console.log(error)
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchData();
-    }, [id])
 
     const isOwner = !!(account && nft?.owner?.address && account.toLowerCase() === nft.owner.address.toLowerCase());
     

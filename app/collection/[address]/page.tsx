@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useWallet } from "@/contexts/WalletProvider";
 import Loading from "@/components/ui/Loading";
 import NftCard from "@/components/features/NftCard";
-import { getCollectionDetails } from "@/api/nft";
+import { useCollectionDetails } from "@/hooks/useCollectionQueries";
 import { NftInterface } from "@/types/nft-types";
 import CollectionHeader from "@/components/features/CollectionHeader";
 import CollectionTabs from "@/components/features/CollectionTabs";
@@ -50,41 +50,21 @@ export default function CollectionPage() {
     const { address } = useParams();
     const { account } = useWallet();
     
-    const [loading, setLoading] = useState<boolean>(true);
-    const [collection, setCollection] = useState<CollectionDetails | null>(null);
-    const [nfts, setNfts] = useState<NftInterface[]>([]);
-    const [history, setHistory] = useState<CollectionHistory[]>([]);
-    const [metrics, setMetrics] = useState<CollectionMetrics | null>(null);
-    const [topNft, setTopNft] = useState<any | null>(null);
-    
+    const { data, isLoading: loading } = useCollectionDetails(address as string, {
+        enabled: !!address,
+    });
+
+    const collection: CollectionDetails | null = data?.success ? data.collection : null;
+    const nfts: NftInterface[] = data?.success ? (data.nfts || []) : [];
+    const history: CollectionHistory[] = data?.success ? (data.history || []) : [];
+    const metrics: CollectionMetrics | null = data?.success ? data.metrics : null;
+    const topNft: any | null = data?.success ? data.topNft : null;
+
     // UI states
     const [activeTab, setActiveTab] = useState<"items" | "activity">("items");
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<"all" | "listed" | "vaulted">("all");
     const [copied, setCopied] = useState<boolean>(false);
-
-    const fetchData = async () => {
-        if (!address) return;
-        try {
-            setLoading(true);
-            const data = await getCollectionDetails(address as string);
-            if (data.success) {
-                setCollection(data.collection);
-                setNfts(data.nfts || []);
-                setHistory(data.history || []);
-                setMetrics(data.metrics);
-                setTopNft(data.topNft);
-            }
-        } catch (error) {
-            console.error("Error fetching collection details:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-    }, [address]);
 
     const handleCopyAddress = () => {
         if (!collection) return;

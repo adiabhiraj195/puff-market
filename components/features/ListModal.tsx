@@ -5,7 +5,7 @@ import { useWriteContract, usePublicClient } from 'wagmi';
 import { parseUnits } from 'viem';
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from '@/constants/PuffNft';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
-import { createListing } from '@/api/nft';
+import { useCreateListing } from '@/hooks/useNftQueries';
 import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
 import { useNotification } from '@/contexts/NotificationContext';
 
@@ -21,6 +21,7 @@ interface ListModalProps {
 type TxState = 'idle' | 'signing' | 'pending' | 'confirmed' | 'error';
 
 export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, nftAddress }: ListModalProps) {
+  const createListingMutation = useCreateListing();
   const [price, setPrice] = useState('');
   const [tokenType, setTokenType] = useState<'eth' | 'puff' | 'custom'>('eth');
   const [customTokenAddress, setCustomTokenAddress] = useState('');
@@ -188,7 +189,12 @@ export default function ListModal({ nftId, tokenId, isOpen, onClose, onSuccess, 
       // --- STEP 3: BACKEND NOTIFICATION ---
       console.log("[ListModal] Sending listing details to backend...");
       const dbTokenId = `${targetNftAddress.toLowerCase()}-${tokenId}`;
-      await createListing(dbTokenId, price, listHash, tokenAddress);
+      await createListingMutation.mutateAsync({
+        tokenId: dbTokenId,
+        price,
+        txHash: listHash,
+        paymentToken: tokenAddress,
+      });
 
       notify.update(toastId, {
         type: "success",

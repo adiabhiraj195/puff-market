@@ -7,7 +7,7 @@ import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadC
 import { sepolia } from "wagmi/chains";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
-import { getSiweNonce, verifySiwe } from "@/api/auth";
+import { useSiweNonce, useVerifySiwe } from "@/hooks/useAuthQueries";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useWalletStore } from "@/store/useWalletStore";
 
@@ -30,13 +30,13 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 export const useWallet = () => {
     const store = useWalletStore();
     const context = useContext(WalletContext);
-    
+
     if (context) {
         return context;
     }
 
     return {
-        connectWallet: async () => {},
+        connectWallet: async () => { },
         disconnectWallet: store.resetWalletState,
         account: store.account,
         provider: store.provider,
@@ -46,7 +46,7 @@ export const useWallet = () => {
         puffBalance: store.puffBalance,
         error: store.error,
         user: store.user,
-        refetchBalance: () => {},
+        refetchBalance: () => { },
     };
 };
 
@@ -212,6 +212,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, [setToken, setUser, setIsAuthenticated]);
 
+    const { mutateAsync: fetchNonce } = useSiweNonce();
+    const { mutateAsync: verifyAuth } = useVerifySiwe();
+
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
         if (isSigning) return;
@@ -221,14 +224,14 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setError(null);
             toastId = notify.loading("Authenticating Wallet...", "Please sign the SIWE request in your wallet.");
 
-            // 1. GET message string with nonce
-            const { message } = await getSiweNonce(walletAddress);
+            // 1. GET message string with nonce using TanStack Query mutation
+            const { message } = await fetchNonce(walletAddress);
 
             // 2. signMessage
             const signature = await signMessageAsync({ message });
 
-            // 3. verify
-            const verifyData = await verifySiwe(message, signature, walletAddress);
+            // 3. verify using TanStack Query mutation
+            const verifyData = await verifyAuth({ message, signature, address: walletAddress });
 
             if (verifyData.success) {
                 localStorage.setItem('token', verifyData.token);

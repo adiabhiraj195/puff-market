@@ -24,7 +24,7 @@ import {
   PUFF_NFT_ADDRESS,
 } from '@/constants/contracts';
 import FaucetModal from '@/components/features/FaucetModal';
-import { buyNft } from '@/api/nft';
+import { useBuyNft } from '@/hooks/useNftQueries';
 
 interface BuyModalProps {
   nftId: string;
@@ -41,6 +41,7 @@ interface BuyModalProps {
 type TxState = 'idle' | 'signing' | 'pending' | 'confirmed' | 'error';
 
 export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onClose, onSuccess, paymentToken, nftAddress }: BuyModalProps) {
+  const buyNftMutation = useBuyNft();
 
   const { puffBalance, refetchBalance } = useWallet();
   const { address: userAddress } = useAccount();
@@ -212,10 +213,10 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
         setStep2State('confirmed');
         console.log("[BuyModal] Buy confirmed!");
 
-        // Update backend database immediately
+        // Update backend database immediately via mutation
         try {
           console.log("[BuyModal] Informing backend database of purchase...");
-          await buyNft(nftId, { sellerId, txHash: buyHash, price });
+          await buyNftMutation.mutateAsync({ nftId, payload: { sellerId, txHash: buyHash, price } });
         } catch (backendErr) {
           console.error("[BuyModal] Backend sync failed, but transaction succeeded on-chain:", backendErr);
         }
@@ -308,10 +309,10 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
         setStep2State('confirmed');
         console.log("[BuyModal] buyItemWithPermit transaction confirmed!");
 
-        // Update backend database immediately
+        // Update backend database immediately via mutation
         try {
           console.log("[BuyModal] Informing backend database of purchase...");
-          await buyNft(nftId, { sellerId, txHash: buyHash, price });
+          await buyNftMutation.mutateAsync({ nftId, payload: { sellerId, txHash: buyHash, price } });
         } catch (backendErr) {
           console.error("[BuyModal] Backend sync failed, but transaction succeeded on-chain:", backendErr);
         }
@@ -371,10 +372,10 @@ export default function BuyModal({ nftId, tokenId, price, sellerId, isOpen, onCl
       setStep2State('confirmed');
       console.log("[BuyModal] Buy confirmed!");
 
-      // Update backend database immediately
+      // Update backend database immediately via mutation
       try {
         console.log("[BuyModal] Informing backend database of purchase...");
-        await buyNft(nftId, { sellerId, txHash: buyHash, price });
+        await buyNftMutation.mutateAsync({ nftId, payload: { sellerId, txHash: buyHash, price } });
       } catch (backendErr) {
         console.error("[BuyModal] Backend sync failed, but transaction succeeded on-chain:", backendErr);
       }

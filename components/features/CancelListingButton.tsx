@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { useWallet } from '@/contexts/WalletProvider'
 import { useNotification } from '@/contexts/NotificationContext'
-import { cancelListing } from '@/api/nft';
+import { useCancelListing } from '@/hooks/useNftQueries';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { FiXCircle } from 'react-icons/fi';
@@ -33,6 +33,7 @@ export default function Cancel_Listing_Button({
     const { notify } = useNotification();
     const { writeContractAsync } = useWriteContract();
     const publicClient = usePublicClient();
+    const cancelListingMutation = useCancelListing();
     const [loading, setLoading] = useState(false);
 
     async function handleCancel() {
@@ -63,7 +64,7 @@ export default function Cancel_Listing_Button({
                 await publicClient.waitForTransactionReceipt({ hash: txHash });
             }
 
-            await cancelListing(nftId);
+            await cancelListingMutation.mutateAsync(nftId);
             notify.update(toastId, {
                 type: "success",
                 title: "Listing Cancelled!",

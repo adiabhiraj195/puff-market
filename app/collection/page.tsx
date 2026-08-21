@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Loading from "@/components/ui/Loading";
-import { getAllCollections } from "@/api/nft";
+import { useAllCollections } from "@/hooks/useCollectionQueries";
 import { FiSearch } from "react-icons/fi";
 import CollectionsDirectoryHeader from "@/components/features/CollectionsDirectoryHeader";
 import CollectionsDirectoryGrid from "@/components/features/CollectionsDirectoryGrid";
@@ -19,25 +19,9 @@ interface CollectionItem {
 }
 
 export default function CollectionsDirectoryPage() {
-    const [loading, setLoading] = useState<boolean>(true);
-    const [collections, setCollections] = useState<CollectionItem[]>([]);
+    const { data: collections = [], isLoading: loading } = useAllCollections();
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [copiedId, setCopiedId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchCollections = async () => {
-            try {
-                setLoading(true);
-                const data = await getAllCollections();
-                setCollections(data || []);
-            } catch (error) {
-                console.error("Error fetching collections directory:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCollections();
-    }, []);
 
     const handleCopyAddress = (e: React.MouseEvent, address: string, id: string) => {
         e.preventDefault();

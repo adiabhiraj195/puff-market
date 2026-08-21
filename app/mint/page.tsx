@@ -5,10 +5,10 @@ import { useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 
 import { decodeEventLog } from "viem";
 import { useWallet } from "@/contexts/WalletProvider";
 import { useNotification } from "@/contexts/NotificationContext";
-import axiosClient from "@/api/axiosClient";
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from "@/constants/PuffNft";
 import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI, MARKETPLACE_NFT_ABI } from "@/constants/NFTFactory";
-import { getUserCollections, registerCollection } from "@/api/nft";
+import { useUserCollections, useRegisterCollection } from "@/hooks/useCollectionQueries";
+import { useUploadIpfsMedia, useConfirmMint } from "@/hooks/useMediaQueries";
 
 import DeployCollectionModal from "@/components/features/DeployCollectionModal";
 import MintHeader from "@/components/features/MintHeader";
@@ -25,6 +25,14 @@ interface Trait {
 export default function MintPage() {
     const { isConnected, connectWallet, account } = useWallet();
     const { notify } = useNotification();
+
+    // Query hooks
+    const { data: collections = [] } = useUserCollections({
+        enabled: isConnected && !!account,
+    });
+    const uploadIpfsMutation = useUploadIpfsMedia();
+    const confirmMintMutation = useConfirmMint();
+    const registerCollectionMutation = useRegisterCollection();
 
     // Form inputs
     const [name, setName] = useState("");
@@ -45,7 +53,6 @@ export default function MintPage() {
     const [ipfsMetadata, setIpfsMetadata] = useState<any>(null);
 
     // Custom Collection States
-    const [collections, setCollections] = useState<any[]>([]);
     const [selectedCollection, setSelectedCollection] = useState<string>(PUFF_NFT_ADDRESS);
     const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
     const [newCollName, setNewCollName] = useState("");
@@ -66,22 +73,6 @@ export default function MintPage() {
     useEffect(() => {
         setMounted(true);
     }, []);
-
-    // Fetch user custom collections on mount
-    const fetchCollections = async () => {
-        try {
-            const data = await getUserCollections();
-            setCollections(data || []);
-        } catch (err) {
-            console.error("Failed to load user collections:", err);
-        }
-    };
-
-    useEffect(() => {
-        if (isConnected && account) {
-            fetchCollections();
-        }
-    }, [isConnected, account]);
 
     // Handle Drag & Drop Events
     const handleDrag = (e: React.DragEvent) => {
@@ -165,15 +156,11 @@ export default function MintPage() {
             const validTraits = traits.filter((t) => t.key.trim() && t.value.trim());
             formData.append("traits", JSON.stringify(validTraits));
 
-            const res = await axiosClient.post("/api/media/upload", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
+            const res = await uploadIpfsMutation.mutateAsync(formData);
 
-            if (res.data.success) {
-                setTokenURI(res.data.tokenURI);
-                setIpfsMetadata(res.data.metadata);
+            if (res.success) {
+                setTokenURI(res.tokenURI);
+                setIpfsMetadata(res.metadata);
                 setUploadState("uploaded");
                 notify.update(toastId, {
                     type: "success",
@@ -182,7 +169,7 @@ export default function MintPage() {
                 });
                 setCurrentStep(2); // Proceed to Mint Blockchain Step
             } else {
-                throw new Error(res.data.error || "Failed to upload");
+                throw new Error(res.error || "Failed to upload");
             }
         } catch (err: any) {
             console.error(err);
@@ -239,7 +226,7 @@ export default function MintPage() {
             setErrorMessage(msg);
             notify.error("Minting Failed", msg);
         }
-    }, [isWritePending, hash, isConfirming, writeError]);
+    }, [isWritePending, hash, isConfirming, writeError, notify]);
 
     // Step 3: Handle receipt confirmation and post back to database
     useEffect(() => {
@@ -278,15 +265,15 @@ export default function MintPage() {
 
                     console.log("[Mint] Confirming on-chain mint on backend, tokenId:", tokenIdStr);
 
-                    const confirmRes = await axiosClient.post("/api/media/confirm-mint", {
+                    const confirmRes = await confirmMintMutation.mutateAsync({
                         tokenId: tokenIdStr || "0", // Fallback to 0 if decoding fails
                         metadataURI: tokenURI,
                         metadata: ipfsMetadata,
                         contractAddress: selectedCollection
                     });
 
-                    if (confirmRes.data.success) {
-                        const nftRecord = confirmRes.data.nft;
+                    if (confirmRes.success) {
+                        const nftRecord = confirmRes.nft;
                         // Redirect to the detail page
                         window.location.href = `/nft/${nftRecord.id}`;
                     } else {
@@ -299,7 +286,7 @@ export default function MintPage() {
             };
             confirmOnBackend();
         }
-    }, [isConfirmed, receipt, tokenURI, ipfsMetadata, selectedCollection]);
+    }, [isConfirmed, receipt, tokenURI, ipfsMetadata, selectedCollection, confirmMintMutation, notify]);
 
     const handleGoBack = () => {
         setUploadState("idle");
@@ -360,8 +347,8 @@ export default function MintPage() {
                     throw new Error("CollectionCreated event not found in tx receipt.");
                 }
 
-                // Register collection in database
-                const regRes = await registerCollection({
+                // Register collection in database via mutation
+                const regRes = await registerCollectionMutation.mutateAsync({
                     contractAddress: cloneAddress,
                     name: newCollName,
                     symbol: newCollSymbol
@@ -377,7 +364,6 @@ export default function MintPage() {
                     setIsDeployModalOpen(false);
                     setNewCollName("");
                     setNewCollSymbol("");
-                    fetchCollections();
                 } else {
                     throw new Error(regRes.error || "Failed to register collection in database");
                 }

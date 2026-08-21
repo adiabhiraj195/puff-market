@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { FiServer, FiX, FiClock, FiCheckCircle, FiRefreshCw } from "react-icons/fi";
 import { Outfit } from "@/lib/fonts";
+import { useServerHealth } from "@/hooks/useHealthQuery";
 
 const outfit = Outfit({
   weight: ["400", "500", "600", "700"],
@@ -11,8 +12,7 @@ const outfit = Outfit({
 
 export default function RenderWakeupBanner() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
-  const [isChecking, setIsChecking] = useState<boolean>(false);
-  const [serverOnline, setServerOnline] = useState<boolean | null>(null);
+  const { data: serverOnline, isFetching: isChecking, refetch } = useServerHealth();
 
   useEffect(() => {
     // Show banner on landing if not dismissed in session
@@ -32,22 +32,7 @@ export default function RenderWakeupBanner() {
   };
 
   const checkServerStatus = async () => {
-    setIsChecking(true);
-    try {
-      const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
-      const res = await fetch(`${serverUrl}/api/v1/health`, { method: "GET" }).catch(() => null);
-      if (res && res.ok) {
-        setServerOnline(true);
-      } else {
-        // Fallback test on root
-        const ping = await fetch(`${serverUrl}/`, { method: "GET" }).catch(() => null);
-        setServerOnline(!!(ping && ping.ok));
-      }
-    } catch (e) {
-      setServerOnline(false);
-    } finally {
-      setIsChecking(false);
-    }
+    await refetch();
   };
 
   if (!isVisible) return null;

@@ -5,9 +5,10 @@ import { useWallet } from "@/contexts/WalletProvider";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useWriteContract, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
-import { getUserNfts, getUserCollections, registerCollection } from "@/api/nft";
 import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI } from "@/constants/NFTFactory";
-import { getUserProfile, updateUserProfile, UserProfile } from "@/api/user";
+import { useUserProfile, useUpdateProfile } from "@/hooks/useUserQueries";
+import { useUserNfts } from "@/hooks/useNftQueries";
+import { useUserCollections, useRegisterCollection } from "@/hooks/useCollectionQueries";
 import MoneyWithdraw from "@/components/features/MoneyWithdraw";
 import Loading from "@/components/ui/Loading";
 import AccountHeader from "@/components/features/AccountHeader";
@@ -21,13 +22,25 @@ export default function AccountPage() {
     const { isConnected, account, connectWallet } = useWallet();
     const { notify } = useNotification();
 
-    // Data states
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [nfts, setNfts] = useState<any[]>([]);
-    const [collections, setCollections] = useState<any[]>([]);
+    // Query hooks
+    const { data: profileData, isLoading: isProfileLoading } = useUserProfile({
+        enabled: isConnected && !!account,
+    });
+    const profile = profileData?.success ? profileData.user : null;
+
+    const { data: nfts = [], isLoading: isNftsLoading } = useUserNfts(undefined, {
+        enabled: isConnected && !!account,
+    });
+
+    const { data: collections = [], isLoading: isCollectionsLoading } = useUserCollections({
+        enabled: isConnected && !!account,
+    });
+
+    const updateProfileMutation = useUpdateProfile();
+    const registerCollectionMutation = useRegisterCollection();
+
     const [activeTab, setActiveTab] = useState<'nfts' | 'collections'>('nfts');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const loading = isProfileLoading || isNftsLoading || isCollectionsLoading;
 
     // Edit modal states
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,8 +49,17 @@ export default function AccountPage() {
     const [editDob, setEditDob] = useState("");
     const [editAvatarUrl, setEditAvatarUrl] = useState("");
     const [editError, setEditError] = useState<string | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+
+    // Sync form inputs when profile changes
+    useEffect(() => {
+        if (profile) {
+            setEditUsername(profile.username || "");
+            setEditBio(profile.bio || "");
+            setEditDob(profile.dob || "");
+            setEditAvatarUrl(profile.avatarUrl || "");
+        }
+    }, [profile]);
 
     // Custom Collection States
     const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
@@ -54,32 +76,6 @@ export default function AccountPage() {
     useEffect(() => {
         setMounted(true);
     }, []);
-
-    const fetchProfileAndNfts = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const [profileRes, nftsRes, collectionsRes] = await Promise.all([
-                getUserProfile(),
-                getUserNfts(),
-                getUserCollections()
-            ]);
-            if (profileRes.success) {
-                setProfile(profileRes.user);
-                setEditUsername(profileRes.user.username || "");
-                setEditBio(profileRes.user.bio || "");
-                setEditDob(profileRes.user.dob || "");
-                setEditAvatarUrl(profileRes.user.avatarUrl || "");
-            }
-            setNfts(nftsRes || []);
-            setCollections(collectionsRes || []);
-        } catch (e: any) {
-            console.error("Failed to load user profile or NFTs:", e);
-            setError("Failed to load account profile data.");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleDeployCollection = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,8 +116,8 @@ export default function AccountPage() {
                     throw new Error("CollectionCreated event not found in tx receipt.");
                 }
 
-                // Register collection in backend
-                const regRes = await registerCollection({
+                // Register collection in backend via mutation
+                const regRes = await registerCollectionMutation.mutateAsync({
                     contractAddress: cloneAddress,
                     name: newCollName,
                     symbol: newCollSymbol
@@ -132,8 +128,6 @@ export default function AccountPage() {
                     setNewCollName("");
                     setNewCollSymbol("");
                     setIsDeployModalOpen(false);
-                    // Refresh data
-                    await fetchProfileAndNfts();
                 } else {
                     throw new Error("Failed to register collection on backend.");
                 }
@@ -146,17 +140,9 @@ export default function AccountPage() {
         }
     };
 
-
-    useEffect(() => {
-        if (isConnected && account) {
-            fetchProfileAndNfts();
-        }
-    }, [isConnected, account]);
-
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setEditError(null);
-        setIsSaving(true);
         setSaveSuccess(false);
         const toastId = notify.loading("Updating Profile...", "Saving profile details...");
 
@@ -167,9 +153,8 @@ export default function AccountPage() {
                 dob: editDob.trim() || undefined,
                 avatarUrl: editAvatarUrl.trim() || undefined
             };
-            const res = await updateUserProfile(payload);
+            const res = await updateProfileMutation.mutateAsync(payload);
             if (res.success) {
-                setProfile(res.user);
                 setSaveSuccess(true);
                 notify.update(toastId, {
                     type: "success",
@@ -190,8 +175,6 @@ export default function AccountPage() {
                 title: "Update Failed",
                 message: errStr,
             });
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -282,7 +265,7 @@ export default function AccountPage() {
                 setEditAvatarUrl={setEditAvatarUrl}
                 editError={editError}
                 saveSuccess={saveSuccess}
-                isSaving={isSaving}
+                isSaving={updateProfileMutation.isPending}
             />
 
             {/* DEPLOY NEW COLLECTION MODAL */}

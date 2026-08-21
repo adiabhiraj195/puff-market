@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import FeaturedDropsCarousel from "@/components/features/FeaturedDropsCarousel";
-import { getNftListings, getAllCollections } from "@/api/nft";
+import { useNftListings } from "@/hooks/useNftQueries";
+import { useAllCollections } from "@/hooks/useCollectionQueries";
 import { ListingInterface } from "@/types/nft-types";
 import MarketStats from "@/components/features/MarketStats";
 import ListingFilters from "@/components/features/ListingFilters";
@@ -11,11 +12,19 @@ import NftTableList from "@/components/features/NftTableList";
 import EmptyListingsState from "@/components/features/EmptyListingsState";
 
 export default function Home() {
-  const [listings, setListings] = useState<ListingInterface[]>([]);
+  const {
+    data: listings = [],
+    isLoading: loading,
+    isRefetching: refreshing,
+    refetch: refetchListings,
+  } = useNftListings();
+
+  const {
+    data: collections = [],
+    refetch: refetchCollections,
+  } = useAllCollections();
+
   const [filteredListings, setFilteredListings] = useState<ListingInterface[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [collectionsCount, setCollectionsCount] = useState<number>(1);
 
   // States for search and filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -25,28 +34,11 @@ export default function Home() {
 
   const categories = ['All', 'Art', 'Gaming', 'Memberships', 'PFPs', 'Photography', 'Music'];
 
-  const fetchListings = async (showRefreshIndicator = false) => {
-    if (showRefreshIndicator) setRefreshing(true);
-    else setLoading(true);
+  const collectionsCount = collections.length > 0 ? collections.length : 1;
 
-    try {
-      const [listingsData, collectionsData] = await Promise.all([
-        getNftListings(),
-        getAllCollections().catch(() => [])
-      ]);
-      setListings(listingsData || []);
-      setCollectionsCount(collectionsData && collectionsData.length > 0 ? collectionsData.length : 1);
-    } catch (err) {
-      console.error("Failed to fetch listings:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const handleRefresh = async () => {
+    await Promise.all([refetchListings(), refetchCollections()]);
   };
-
-  useEffect(() => {
-    fetchListings();
-  }, []);
 
   // Filter and sort listings
   useEffect(() => {
@@ -118,7 +110,7 @@ export default function Home() {
                 <p className="text-xs text-gray-400 mt-1">Discover trending NFT categories on the PUFF marketplace</p>
               </div>
               <button
-                onClick={() => fetchListings(true)}
+                onClick={handleRefresh}
                 disabled={refreshing || loading}
                 className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl text-xs font-bold transition-all border border-gray-800 cursor-pointer disabled:opacity-50"
               >

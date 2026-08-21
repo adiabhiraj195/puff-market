@@ -1,21 +1,8 @@
-import { TransactionInterface } from '@/types/transaction-types';
-import { ethers } from 'ethers';
-
-import { useEffect, useState } from 'react';
-import { getNftTransactions } from '@/api/nft';
-
+import { useNftTransactions } from '@/hooks/useNftQueries';
 
 export default function Nft_Transaction({ nftId }: { nftId: string }) {
-    const [transactions, setTransactions] = useState<TransactionInterface[] | null>(null);
-    // console.log(nftId)
-    useEffect(() => {
-        const fetchData = async () => {
-            const result = await getNftTransactions(nftId);
-            setTransactions(result.transactions as TransactionInterface[]);
-            // console.log(result);
-        }
-        fetchData()
-    }, [])
+    const { data } = useNftTransactions(nftId, { enabled: !!nftId });
+    const transactions = data?.success ? data.transactions : null;
     return (
         <div>
             <h1>Transactions</h1>
