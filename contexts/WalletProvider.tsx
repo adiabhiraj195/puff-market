@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { ethers } from "ethers";
 import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract, useBalance } from "wagmi";
@@ -27,6 +27,40 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+// Helper to decode and validate JWT payload
+const decodeJwt = (jwtToken: string | null) => {
+    if (!jwtToken) return null;
+    try {
+        const parts = jwtToken.split('.');
+        if (parts.length !== 3) return null;
+        let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
+            return payload;
+        }
+        return null;
+    } catch {
+        try {
+            const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+            if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
+                return payload;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }
+};
+
 export const useWallet = () => {
     const store = useWalletStore();
     const context = useContext(WalletContext);
@@ -38,10 +72,10 @@ export const useWallet = () => {
     return {
         connectWallet: async () => { },
         disconnectWallet: store.resetWalletState,
-        account: store.account,
+        account: store.account || store.user?.address || null,
         provider: store.provider,
         signer: store.signer,
-        isConnected: store.isConnected && store.isAuthenticated,
+        isConnected: store.isAuthenticated,
         isAuthenticated: store.isAuthenticated,
         puffBalance: store.puffBalance,
         error: store.error,
@@ -56,6 +90,8 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const { disconnect } = useDisconnect();
     const { openConnectModal } = useConnectModal();
     const { data: client } = useConnectorClient();
+
+    const [isInitialized, setIsInitialized] = useState(false);
 
     const {
         account,
@@ -86,15 +122,19 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const checkedSepoliaRef = useRef<string | null>(null);
 
     const { notify } = useNotification();
+    const { mutateAsync: fetchNonce } = useSiweNonce();
+    const { mutateAsync: verifyAuth } = useVerifySiwe();
+
+    const activeAddress = address || user?.address || account || null;
 
     // Get PUFF Token balance
     const { data: balance, refetch: refetchBalance } = useReadContract({
         address: PUFF_TOKEN_ADDRESS as `0x${string}`,
         abi: PUFF_TOKEN_ABI as any,
         functionName: 'balanceOf',
-        args: address ? [address as `0x${string}`] : undefined,
+        args: activeAddress ? [activeAddress as `0x${string}`] : undefined,
         query: {
-            enabled: !!address,
+            enabled: !!activeAddress,
         }
     });
 
@@ -111,21 +151,21 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // Fetch Sepolia ETH balance
     const { data: sepoliaBalance, isFetched: isSepoliaBalanceFetched } = useBalance({
-        address: address as `0x${string}`,
+        address: activeAddress as `0x${string}`,
         chainId: sepolia.id,
         query: {
-            enabled: !!address && isWalletConnected,
+            enabled: !!activeAddress && isWalletConnected,
         }
     });
 
     // Check Sepolia ETH balance when wallet connects
     useEffect(() => {
-        if (!isWalletConnected || !address) {
+        if (!isWalletConnected || !activeAddress) {
             checkedSepoliaRef.current = null;
             return;
         }
 
-        const walletAddr = address.toLowerCase();
+        const walletAddr = activeAddress.toLowerCase();
 
         if (isSepoliaBalanceFetched && sepoliaBalance) {
             if (checkedSepoliaRef.current !== walletAddr) {
@@ -144,7 +184,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 }
             }
         }
-    }, [address, isWalletConnected, isSepoliaBalanceFetched, sepoliaBalance, notify]);
+    }, [activeAddress, isWalletConnected, isSepoliaBalanceFetched, sepoliaBalance, notify]);
 
     // Setup ethers provider & signer from connector client
     useEffect(() => {
@@ -165,7 +205,6 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             lastConnectionRef.current.address.toLowerCase() === addressVal.toLowerCase() &&
             lastConnectionRef.current.chainId === chainId
         ) {
-            // Avoid redundant provider/signer reconstruction to break re-render loop
             return;
         }
 
@@ -180,40 +219,32 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, [client, setProvider, setSigner]);
 
-    // Keep state in sync with wagmi account state
+    // Sync wallet connection flag to Zustand
     useEffect(() => {
-        if (address) {
-            setAccount(address);
-            setIsConnected(isWalletConnected);
-        } else {
-            setAccount(null);
-            setIsConnected(false);
-        }
-    }, [address, isWalletConnected, setAccount, setIsConnected]);
+        setIsConnected(isWalletConnected);
+    }, [isWalletConnected, setIsConnected]);
 
-    // Initial mount: load JWT from localStorage
+    // 1. Initial Mount Lifecycle: Load JWT from localStorage before checking wallet state
     useEffect(() => {
         const savedToken = localStorage.getItem("token");
-        if (savedToken) {
-            try {
-                const payload = JSON.parse(atob(savedToken.split('.')[1]));
-                if (payload.exp * 1000 > Date.now()) {
-                    setToken(savedToken);
-                    setUser({ id: payload.id, address: payload.address });
-                    setIsAuthenticated(true);
-                } else {
-                    localStorage.removeItem("token");
-                    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-                }
-            } catch (e) {
-                localStorage.removeItem("token");
-                document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            }
-        }
-    }, [setToken, setUser, setIsAuthenticated]);
+        const payload = decodeJwt(savedToken);
 
-    const { mutateAsync: fetchNonce } = useSiweNonce();
-    const { mutateAsync: verifyAuth } = useVerifySiwe();
+        if (payload) {
+            setToken(savedToken);
+            setUser({ id: payload.id, address: payload.address });
+            if (payload.address) {
+                setAccount(payload.address);
+            }
+            setIsAuthenticated(true);
+        } else {
+            localStorage.removeItem("token");
+            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            setToken(null);
+            setUser(null);
+            setIsAuthenticated(false);
+        }
+        setIsInitialized(true);
+    }, [setToken, setUser, setIsAuthenticated, setAccount]);
 
     // SIWE Login trigger
     const siweLogin = async (walletAddress: string) => {
@@ -238,6 +269,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 document.cookie = `token=${verifyData.token}; path=/; max-age=2592000; SameSite=Lax`;
                 setToken(verifyData.token);
                 setUser(verifyData.user);
+                setAccount(walletAddress);
                 setIsAuthenticated(true);
                 notify.update(toastId, {
                     type: "success",
@@ -266,44 +298,62 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setToken(null);
             setUser(null);
             setIsAuthenticated(false);
+            hasPromptedRef.current = null;
         } finally {
             setIsSigning(false);
         }
     };
 
-    // Auto-login or verify address matches JWT
+    // 4. Account Switch Safety & Wallet Auto-Login Effect
     useEffect(() => {
-        // Wait until wagmi has finished checking the connection status
-        if (status === 'connecting' || status === 'reconnecting') {
+        if (!isInitialized || status === 'connecting' || status === 'reconnecting') {
             return;
         }
 
+        const savedToken = localStorage.getItem("token");
+        const payload = decodeJwt(savedToken);
+
         if (isWalletConnected && address) {
-            const walletAddress = address.toLowerCase();
-            let tokenAddress = "";
+            const connectedAddress = address.toLowerCase();
 
-            if (token) {
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    tokenAddress = payload.address?.toLowerCase();
-                } catch (e) { }
-            }
+            if (payload) {
+                const jwtAddress = payload.address?.toLowerCase();
 
-            if (tokenAddress !== walletAddress && hasPromptedRef.current !== walletAddress) {
-                hasPromptedRef.current = walletAddress;
-                siweLogin(address);
+                if (jwtAddress && jwtAddress !== connectedAddress) {
+                    // Account switch detected! Wallet address does not match JWT address.
+                    console.log(`[Auth] Account switch detected (${jwtAddress} -> ${connectedAddress}). Re-authenticating.`);
+                    localStorage.removeItem("token");
+                    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                    setToken(null);
+                    setUser(null);
+                    setIsAuthenticated(false);
+
+                    if (hasPromptedRef.current !== connectedAddress) {
+                        hasPromptedRef.current = connectedAddress;
+                        siweLogin(address);
+                    }
+                } else {
+                    // Wallet address matches active JWT token
+                    setToken(savedToken);
+                    setUser({ id: payload.id, address: payload.address });
+                    setAccount(address);
+                    setIsAuthenticated(true);
+                }
+            } else {
+                // Wallet connected but no valid JWT token exists
+                if (hasPromptedRef.current !== connectedAddress) {
+                    hasPromptedRef.current = connectedAddress;
+                    siweLogin(address);
+                }
             }
-        } else if (status === 'disconnected') {
+        } else {
             hasPromptedRef.current = null;
-            if (isAuthenticated) {
-                disconnectWallet();
-            }
         }
-    }, [address, isWalletConnected, token, status, isAuthenticated]);
+    }, [address, isWalletConnected, status, isInitialized, setToken, setUser, setIsAuthenticated, setAccount]);
 
     // Socket.io real-time connection for notifications
     useEffect(() => {
-        if (!isWalletConnected || !address) {
+        if (!activeAddress) {
             return;
         }
 
@@ -311,7 +361,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001");
 
         socket.on("connect", () => {
-            const walletRoom = address.toLowerCase();
+            const walletRoom = activeAddress.toLowerCase();
             console.log(`[Socket] Connected. Joining wallet room: ${walletRoom}`);
             socket.emit("join:wallet", { address: walletRoom });
         });
@@ -340,10 +390,31 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             console.log("[Socket] Cleaning up socket connection...");
             socket.disconnect();
         };
-    }, [address, isWalletConnected, setNotification, notify, refetchBalance]);
+    }, [activeAddress, setNotification, notify, refetchBalance]);
 
+    // 3. Guard the Wallet Connection Flow
     const connectWallet = async () => {
         try {
+            const savedToken = localStorage.getItem("token");
+            const payload = decodeJwt(savedToken);
+
+            if (payload) {
+                // Valid token already exists - bypass SIWE flow completely
+                setToken(savedToken);
+                setUser({ id: payload.id, address: payload.address });
+                if (payload.address) {
+                    setAccount(payload.address);
+                }
+                setIsAuthenticated(true);
+
+                // Reconnect wallet in Wagmi if not connected
+                if (!isWalletConnected && openConnectModal) {
+                    await openConnectModal();
+                }
+                return;
+            }
+
+            // No valid JWT token found
             if (isWalletConnected && address) {
                 await siweLogin(address);
             } else if (openConnectModal) {
@@ -359,6 +430,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         disconnect();
         localStorage.removeItem('token');
         document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        hasPromptedRef.current = null;
         resetWalletState();
     };
 
@@ -367,10 +439,10 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             value={{
                 connectWallet,
                 disconnectWallet,
-                account,
+                account: activeAddress,
                 provider,
                 signer,
-                isConnected: isWalletConnected && isAuthenticated,
+                isConnected: isAuthenticated,
                 isAuthenticated,
                 puffBalance: puffBalanceFormatted,
                 error,
