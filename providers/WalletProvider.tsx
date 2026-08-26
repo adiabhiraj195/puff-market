@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import React, { useEffect, useRef, useState, ReactNode } from "react";
 import { ethers } from "ethers";
 import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract, useBalance } from "wagmi";
@@ -8,24 +8,8 @@ import { sepolia } from "wagmi/chains";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from "@/constants/PuffToken";
 import { useSiweNonce, useVerifySiwe } from "@/hooks/useAuthQueries";
-import { useNotification } from "@/contexts/NotificationContext";
+import { useNotification } from "@/providers/NotificationProvider";
 import { useWalletStore } from "@/store/useWalletStore";
-
-interface WalletContextType {
-    connectWallet: () => Promise<void>;
-    disconnectWallet: () => void;
-    account: string | null;
-    provider: ethers.BrowserProvider | null;
-    signer: ethers.Signer | null;
-    isConnected: boolean;
-    isAuthenticated: boolean;
-    puffBalance: string;
-    error: string | null;
-    user: any | null;
-    refetchBalance: () => void;
-}
-
-const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 // Helper to decode and validate JWT payload
 const decodeJwt = (jwtToken: string | null) => {
@@ -63,15 +47,10 @@ const decodeJwt = (jwtToken: string | null) => {
 
 export const useWallet = () => {
     const store = useWalletStore();
-    const context = useContext(WalletContext);
-
-    if (context) {
-        return context;
-    }
 
     return {
-        connectWallet: async () => { },
-        disconnectWallet: store.resetWalletState,
+        connectWallet: store.connectWallet,
+        disconnectWallet: store.disconnectWallet,
         account: store.account || store.user?.address || null,
         provider: store.provider,
         signer: store.signer,
@@ -80,7 +59,7 @@ export const useWallet = () => {
         puffBalance: store.puffBalance,
         error: store.error,
         user: store.user,
-        refetchBalance: () => { },
+        refetchBalance: store.refetchBalance,
     };
 };
 
@@ -115,6 +94,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setNotification,
         setIsSigning,
         resetWalletState,
+        setConnectWalletHandler,
+        setDisconnectWalletHandler,
+        setRefetchBalanceHandler,
     } = useWalletStore();
 
     const lastConnectionRef = useRef<{ address: string; chainId: number } | null>(null);
@@ -434,22 +416,41 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         resetWalletState();
     };
 
+    const connectWalletRef = useRef(connectWallet);
+    connectWalletRef.current = connectWallet;
+
+    const disconnectWalletRef = useRef(disconnectWallet);
+    disconnectWalletRef.current = disconnectWallet;
+
+    const refetchBalanceRef = useRef(refetchBalance);
+    refetchBalanceRef.current = refetchBalance;
+
+    useEffect(() => {
+        setConnectWalletHandler(async () => {
+            if (connectWalletRef.current) {
+                await connectWalletRef.current();
+            }
+        });
+        setDisconnectWalletHandler(() => {
+            if (disconnectWalletRef.current) {
+                disconnectWalletRef.current();
+            }
+        });
+        setRefetchBalanceHandler(() => {
+            if (refetchBalanceRef.current) {
+                refetchBalanceRef.current();
+            }
+        });
+
+        return () => {
+            setConnectWalletHandler(null);
+            setDisconnectWalletHandler(null);
+            setRefetchBalanceHandler(null);
+        };
+    }, [setConnectWalletHandler, setDisconnectWalletHandler, setRefetchBalanceHandler]);
+
     return (
-        <WalletContext.Provider
-            value={{
-                connectWallet,
-                disconnectWallet,
-                account: activeAddress,
-                provider,
-                signer,
-                isConnected: isAuthenticated,
-                isAuthenticated,
-                puffBalance: puffBalanceFormatted,
-                error,
-                user,
-                refetchBalance
-            }}
-        >
+        <>
             {children}
             {notification && (
                 <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm w-full bg-[#111318] border border-green-500/30 rounded-2xl p-5 shadow-2xl text-white backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-300">
@@ -476,6 +477,6 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     </div>
                 </div>
             )}
-        </WalletContext.Provider>
+        </>
     );
 };

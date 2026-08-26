@@ -8,7 +8,7 @@ import SaleCard from "@/components/features/SaleCard";
 import PriceHistory from "@/components/features/PriceHistory";
 import TransactionHistory from "@/components/features/TransactionHistory";
 import { useNftDetails, useNftTransactions } from "@/hooks/useNftQueries";
-import { useWallet } from "@/contexts/WalletProvider";
+import { useWallet } from "@/providers/WalletProvider";
 import ListModal from "@/components/features/ListModal";
 import BuyModal from "@/components/features/BuyModal";
 import NftMediaAndDetails from "@/components/features/NftMediaAndDetails";

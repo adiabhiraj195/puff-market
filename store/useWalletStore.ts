@@ -14,6 +14,16 @@ export interface WalletState {
   notification: { message: string } | null;
   isSigning: boolean;
 
+  // Wallet actions
+  connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
+  refetchBalance: () => void;
+
+  // Handlers setters
+  setConnectWalletHandler: (handler: (() => Promise<void>) | null) => void;
+  setDisconnectWalletHandler: (handler: (() => void) | null) => void;
+  setRefetchBalanceHandler: (handler: (() => void) | null) => void;
+
   setAccount: (account: string | null) => void;
   setProvider: (provider: ethers.BrowserProvider | null) => void;
   setSigner: (signer: ethers.Signer | null) => void;
@@ -28,7 +38,13 @@ export interface WalletState {
   resetWalletState: () => void;
 }
 
-export const useWalletStore = create<WalletState>((set) => ({
+interface InternalWalletState extends WalletState {
+  _connectWalletHandler: (() => Promise<void>) | null;
+  _disconnectWalletHandler: (() => void) | null;
+  _refetchBalanceHandler: (() => void) | null;
+}
+
+export const useWalletStore = create<InternalWalletState>((set, get) => ({
   account: null,
   provider: null,
   signer: null,
@@ -41,17 +57,46 @@ export const useWalletStore = create<WalletState>((set) => ({
   notification: null,
   isSigning: false,
 
-  setAccount: (account) => set({ account }),
-  setProvider: (provider) => set({ provider }),
-  setSigner: (signer) => set({ signer }),
-  setIsConnected: (isConnected) => set({ isConnected }),
-  setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
-  setToken: (token) => set({ token }),
-  setUser: (user) => set({ user }),
-  setPuffBalance: (puffBalance) => set({ puffBalance }),
-  setError: (error) => set({ error }),
-  setNotification: (notification) => set({ notification }),
-  setIsSigning: (isSigning) => set({ isSigning }),
+  _connectWalletHandler: null,
+  _disconnectWalletHandler: null,
+  _refetchBalanceHandler: null,
+
+  connectWallet: async () => {
+    const handler = get()._connectWalletHandler;
+    if (handler) {
+      await handler();
+    }
+  },
+  disconnectWallet: () => {
+    const handler = get()._disconnectWalletHandler;
+    if (handler) {
+      handler();
+    } else {
+      get().resetWalletState();
+    }
+  },
+  refetchBalance: () => {
+    const handler = get()._refetchBalanceHandler;
+    if (handler) {
+      handler();
+    }
+  },
+
+  setConnectWalletHandler: (handler) => set({ _connectWalletHandler: handler }),
+  setDisconnectWalletHandler: (handler) => set({ _disconnectWalletHandler: handler }),
+  setRefetchBalanceHandler: (handler) => set({ _refetchBalanceHandler: handler }),
+
+  setAccount: (account) => set((state) => (state.account === account ? state : { account })),
+  setProvider: (provider) => set((state) => (state.provider === provider ? state : { provider })),
+  setSigner: (signer) => set((state) => (state.signer === signer ? state : { signer })),
+  setIsConnected: (isConnected) => set((state) => (state.isConnected === isConnected ? state : { isConnected })),
+  setIsAuthenticated: (isAuthenticated) => set((state) => (state.isAuthenticated === isAuthenticated ? state : { isAuthenticated })),
+  setToken: (token) => set((state) => (state.token === token ? state : { token })),
+  setUser: (user) => set((state) => (state.user === user ? state : { user })),
+  setPuffBalance: (puffBalance) => set((state) => (state.puffBalance === puffBalance ? state : { puffBalance })),
+  setError: (error) => set((state) => (state.error === error ? state : { error })),
+  setNotification: (notification) => set((state) => (state.notification === notification ? state : { notification })),
+  setIsSigning: (isSigning) => set((state) => (state.isSigning === isSigning ? state : { isSigning })),
 
   resetWalletState: () =>
     set({
@@ -68,3 +113,5 @@ export const useWalletStore = create<WalletState>((set) => ({
       isSigning: false,
     }),
 }));
+
+

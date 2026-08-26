@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
-import { useWallet } from "@/contexts/WalletProvider";
-import { useNotification } from "@/contexts/NotificationContext";
+import { useWallet } from "@/providers/WalletProvider";
+import { useNotification } from "@/providers/NotificationProvider";
 import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from "@/constants/PuffNft";
 import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI, MARKETPLACE_NFT_ABI } from "@/constants/NFTFactory";
 import { useUserCollections, useRegisterCollection } from "@/hooks/useCollectionQueries";

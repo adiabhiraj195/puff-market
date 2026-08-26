@@ -1,11 +1,11 @@
 import "./globals.css";
 import type { Metadata } from "next";
 
-import { WalletProvider } from "@/contexts/WalletProvider";
+import { WalletProvider } from "@/providers/WalletProvider";
 import { Apolloprovider } from "@/apolloProvider";
 import { Provider } from "./provider";
-import { Web3Provider } from "@/contexts/Web3Provider";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+import { Web3Provider } from "@/providers/Web3Provider";
+import { NotificationProvider } from "@/providers/NotificationProvider";
 import ToastContainer from "@/components/ui/ToastContainer";
 import RenderWakeupBanner from "@/components/ui/RenderWakeupBanner";
 import Navbar from "@/components/layout/Navbar";

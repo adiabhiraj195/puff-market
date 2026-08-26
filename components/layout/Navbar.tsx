@@ -7,7 +7,7 @@ import { Staatliches } from '@/lib/fonts'
 import logo from '@/components/assets/full-moon-transparent-4.png'
 import Image from 'next/image'
 import SearchBar from '@/components/ui/SearchBar'
-import { useWallet } from '@/contexts/WalletProvider'
+import { useWallet } from '@/providers/WalletProvider'
 import FaucetModal from '@/components/features/FaucetModal'
 
 const statliche = Staatliches({

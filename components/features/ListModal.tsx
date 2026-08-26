@@ -7,7 +7,7 @@ import { PUFF_NFT_ADDRESS, PUFF_NFT_ABI } from '@/constants/PuffNft';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { useCreateListing } from '@/hooks/useNftQueries';
 import { PUFF_TOKEN_ADDRESS } from '@/constants/PuffToken';
-import { useNotification } from '@/contexts/NotificationContext';
+import { useNotification } from '@/providers/NotificationProvider';
 
 interface ListModalProps {
   nftId: string;

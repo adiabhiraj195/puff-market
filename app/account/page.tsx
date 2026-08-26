@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useWallet } from "@/contexts/WalletProvider";
-import { useNotification } from "@/contexts/NotificationContext";
+import { useWallet } from "@/providers/WalletProvider";
+import { useNotification } from "@/providers/NotificationProvider";
 import { useWriteContract, usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
 import { NFT_FACTORY_ADDRESS, NFT_FACTORY_ABI } from "@/constants/NFTFactory";

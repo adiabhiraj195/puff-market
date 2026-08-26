@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useWallet } from "@/contexts/WalletProvider";
+import { useWallet } from "@/providers/WalletProvider";
 
 interface TourStep {
   selector: string;

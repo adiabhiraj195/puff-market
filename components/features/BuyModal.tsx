@@ -12,8 +12,8 @@ import {
 } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseUnits, parseSignature, zeroAddress } from 'viem';
-import { useWallet } from '@/contexts/WalletProvider';
-import { useNotification } from '@/contexts/NotificationContext';
+import { useWallet } from '@/providers/WalletProvider';
+import { useNotification } from '@/providers/NotificationProvider';
 import {
   PUFF_TOKEN_ADDRESS,
   PUFF_TOKEN_ABI,

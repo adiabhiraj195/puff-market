@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useWallet } from "@/contexts/WalletProvider";
+import { useWallet } from "@/providers/WalletProvider";
 import Loading from "@/components/ui/Loading";
 import NftCard from "@/components/features/NftCard";
 import { useCollectionDetails } from "@/hooks/useCollectionQueries";

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useWallet } from '@/contexts/WalletProvider'
-import { useNotification } from '@/contexts/NotificationContext'
+import { useWallet } from '@/providers/WalletProvider'
+import { useNotification } from '@/providers/NotificationProvider'
 import { useReadContract, useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACT_ADDRESS as MARKETPLACE_ADDRESS, ABI as MARKETPLACE_ABI } from '@/constants/Marketplace';
 import { formatEther } from 'viem';

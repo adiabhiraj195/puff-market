@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@/contexts/WalletProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import walletImg from '@/components/assets/wallet.png'
 import Image from 'next/image';
 import { Staatliches, Outfit } from '@/lib/fonts'

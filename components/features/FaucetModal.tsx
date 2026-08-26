@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { PUFF_TOKEN_ADDRESS, PUFF_TOKEN_ABI } from '@/constants/PuffToken';
-import { useWallet } from '@/contexts/WalletProvider';
-import { useNotification } from '@/contexts/NotificationContext';
+import { useWallet } from '@/providers/WalletProvider';
+import { useNotification } from '@/providers/NotificationProvider';
 import { IoClose } from 'react-icons/io5';
 import { Staatliches, Outfit } from '@/lib/fonts';
 
