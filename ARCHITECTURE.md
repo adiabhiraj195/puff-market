@@ -1399,35 +1399,28 @@ function watchAuctionEvents() {
 
 ---
 
-### 8.6 WebSocket Events
+### 8.6 Real-Time Notifications (Server-Sent Events)
 
-**Room naming convention:**
+**Endpoint:** `GET /api/notifications/events?address=<wallet_address>`
 
-```
-auction:<auctionId>    — clients watching a specific auction page join this room
-wallet:<address>       — each logged-in user's personal notification room
-```
-
-**Client joins a room:**
+**Client connection:**
 
 ```typescript
-// Frontend: on auction page mount
-socket.emit('join:auction', { auctionId: '7' })
+// Frontend: connects via browser EventSource
+const eventSource = new EventSource(`${API_URL}/api/notifications/events?address=${walletAddress}`);
 
-// Frontend: on login
-socket.emit('join:wallet', { address: '0xAbCd...' })
+eventSource.addEventListener("nft:sold", (event) => {
+  const data = JSON.parse(event.data);
+  // display toast, update notification store, refetch balance
+});
 ```
 
 **Server emits these events:**
 
-| Event | Room | Payload |
+| Event | Target | Payload |
 |---|---|---|
-| `bid:new` | `auction:<id>` | `{ auctionId, bidder, amount, txHash, timestamp }` |
-| `auction:extended` | `auction:<id>` | `{ auctionId, newEndTime }` |
-| `auction:settled` | `auction:<id>` | `{ auctionId, winner, amount }` |
-| `nft:sold` | `wallet:<address>` | `{ tokenId, name, price, buyer }` — sent to seller |
-| `bid:outbid` | `wallet:<address>` | `{ auctionId, tokenId, yourBid, newHighBid }` — sent to previous highest bidder |
-| `auction:won` | `wallet:<address>` | `{ auctionId, tokenId, name, amount }` — sent to winner |
+| `connected` | Connecting Client | `{ status: "connected", address: "<wallet_address>", timestamp: number }` |
+| `nft:sold` | Seller (`address`) | `{ tokenId, price }` — sent to seller when their listed NFT is purchased |
 
 ---
 

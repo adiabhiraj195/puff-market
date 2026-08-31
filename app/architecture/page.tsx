@@ -93,9 +93,9 @@ const TECH_STACK: TechCard[] = [
     color: 'from-cyan-500/20 to-blue-500/20 text-cyan-400 border-cyan-500/30',
   },
   {
-    name: 'Node.js & Socket.IO Event Listener',
+    name: 'Node.js & SSE Event Stream',
     category: 'Real-Time Indexer',
-    role: 'Listens 24/7 to Ethereum Sepolia contract events and pushes live websocket toast notifications to client UI.',
+    role: 'Listens 24/7 to Ethereum Sepolia contract events and pushes live SSE toast notifications to client UI.',
     rationale: 'Eliminates page reloads for live auctions, outbid alerts, and purchase updates within milliseconds.',
     badge: 'Real-Time Indexer',
     color: 'from-yellow-500/20 to-amber-500/20 text-yellow-400 border-yellow-500/30',
@@ -323,8 +323,8 @@ const GLOSSARY: GlossaryTerm[] = [
     tag: 'Backend Architecture',
   },
   {
-    term: 'WebSockets (Socket.IO)',
-    definition: 'A real-time bidirectional communication channel used to push auction updates and toast alerts to connected browsers without refreshing.',
+    term: 'Server-Sent Events (SSE)',
+    definition: 'A lightweight HTTP-based streaming protocol used to push notifications, live activity, and toast alerts to connected browsers without refreshing.',
     tag: 'Real-Time Sync',
   },
   {
@@ -429,8 +429,8 @@ export default function ArchitecturePage() {
     },
     {
       title: '5. Real-Time Indexer & Toasts',
-      subtitle: 'WebSockets & PostgreSQL Cache',
-      detail: 'Event listener detects contract log on Sepolia block header, updates local read database, and broadcasts instant Socket.IO updates to connected browsers.',
+      subtitle: 'Server-Sent Events & PostgreSQL Cache',
+      detail: 'Event listener detects contract log on Sepolia block header, updates local read database, and streams instant SSE updates to connected browsers.',
       icon: <FaNetworkWired className="text-rose-400" />,
       tag: 'Real-Time Sync',
     },
@@ -684,9 +684,9 @@ export default function ArchitecturePage() {
                     <FaNetworkWired className="text-amber-400" />
                   </div>
                   <h3 className="font-bold text-white text-base">Real-Time Indexer</h3>
-                  <p className="text-xs text-gray-400 mt-1">Node.js, Socket.IO, Prisma & PostgreSQL</p>
+                  <p className="text-xs text-gray-400 mt-1">Node.js, SSE, Prisma & PostgreSQL</p>
                   <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-gray-300">
-                    Monitors block events 24/7, updates read cache & pushes websocket toasts.
+                    Monitors block events 24/7, updates read cache & pushes SSE toasts.
                   </div>
                 </div>
               </div>

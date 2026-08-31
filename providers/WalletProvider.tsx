@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, ReactNode } from "react";
 import { ethers } from "ethers";
-import { io } from "socket.io-client";
 import { useAccount, useSignMessage, useDisconnect, useConnectorClient, useReadContract, useBalance } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -333,44 +332,51 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, [address, isWalletConnected, status, isInitialized, setToken, setUser, setIsAuthenticated, setAccount]);
 
-    // Socket.io real-time connection for notifications
+    // Server-Sent Events (SSE) real-time connection for notifications
     useEffect(() => {
         if (!activeAddress) {
             return;
         }
 
-        console.log("[Socket] Initializing socket connection to server...");
-        const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001");
+        const walletAddress = activeAddress.toLowerCase();
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+        const sseUrl = `${apiUrl}/api/notifications/events?address=${walletAddress}`;
 
-        socket.on("connect", () => {
-            const walletRoom = activeAddress.toLowerCase();
-            console.log(`[Socket] Connected. Joining wallet room: ${walletRoom}`);
-            socket.emit("join:wallet", { address: walletRoom });
+        console.log(`[SSE] Initializing notification stream for wallet: ${walletAddress}...`);
+        const eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = () => {
+            console.log(`[SSE] Connected to notification stream for wallet: ${walletAddress}`);
+        };
+
+        eventSource.addEventListener("nft:sold", (event: MessageEvent) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log("[SSE] Received nft:sold event:", data);
+                const priceNum = Number(data.price);
+                const proceeds = priceNum * 0.925;
+                setNotification({
+                    message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
+                });
+                notify.success(
+                    "NFT Sold! 🎉",
+                    `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
+                );
+
+                // Auto refetch balance
+                refetchBalance();
+            } catch (err) {
+                console.error("[SSE] Error parsing nft:sold event payload:", err);
+            }
         });
 
-        socket.on("nft:sold", (data: { tokenId: string; price: string }) => {
-            console.log("[Socket] Received nft:sold event:", data);
-            const priceNum = Number(data.price);
-            const proceeds = priceNum * 0.925;
-            setNotification({
-                message: `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
-            });
-            notify.success(
-                "NFT Sold! 🎉",
-                `Your NFT (Token #${data.tokenId}) sold for ${priceNum.toLocaleString()} PUFF. Claim ${proceeds.toLocaleString()} PUFF.`
-            );
-
-            // Auto refetch balance
-            refetchBalance();
-        });
-
-        socket.on("disconnect", () => {
-            console.log("[Socket] Disconnected from notification server.");
-        });
+        eventSource.onerror = (err) => {
+            console.warn("[SSE] SSE connection notice/reconnecting:", err);
+        };
 
         return () => {
-            console.log("[Socket] Cleaning up socket connection...");
-            socket.disconnect();
+            console.log("[SSE] Cleaning up SSE connection...");
+            eventSource.close();
         };
     }, [activeAddress, setNotification, notify, refetchBalance]);
 
